@@ -90,6 +90,7 @@ window.UBT_CONFIG = {
       <div class="tab active" data-tab="courses" onclick="switchTab('courses')">Cursos</div>
       <div class="tab" data-tab="calendar" onclick="switchTab('calendar')">Calendário</div>
       <div class="tab" data-tab="faculty" onclick="switchTab('faculty')">Docentes</div>
+      <div class="tab" id="tab-acessos" data-tab="acessos" onclick="switchTab('acessos')" style="margin-left:auto">🔑 Acessos</div>
     </div>
 
     <div id="pane-courses">
@@ -111,6 +112,14 @@ window.UBT_CONFIG = {
         <h3 style="margin:0">Docentes</h3><button class="btn btn-primary btn-sm" onclick="editFac(null)">+ Novo docente</button>
       </div>
       <div class="card"><table><thead><tr><th>Ordem</th><th>Nome</th><th>Função</th><th>Foto</th><th>Ativo</th><th></th></tr></thead><tbody id="tb-faculty"></tbody></table></div>
+    </div>
+
+    <div id="pane-acessos" class="hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 style="margin:0">Acessos ao painel</h3><button class="btn btn-primary btn-sm" onclick="editAcesso()">+ Novo acesso</button>
+      </div>
+      <div class="muted" style="margin-bottom:10px">Contas com permissão de administrar a Universidade BT. Criar aqui gera o login e libera o acesso automaticamente.</div>
+      <div class="card"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Criado</th><th></th></tr></thead><tbody id="tb-acessos"></tbody></table></div>
     </div>
   </div>
 </div>
@@ -149,7 +158,10 @@ async function showApp(session){
   const isAdmin = !!admErr || !!adm;
   const banner = $('#not-admin');
   if(banner) banner.classList.toggle('hidden', isAdmin);
+  const tabAcessos = $('#tab-acessos');
+  if(tabAcessos) tabAcessos.classList.toggle('hidden', !isAdmin);  // só admin gerencia acessos
   loadCourses(); loadCalendar(); loadFaculty();
+  if(isAdmin) loadAcessos();
 }
 async function doLogin(){
   const email=$('#l-email').value.trim(), password=$('#l-pass').value;
@@ -162,7 +174,7 @@ $('#l-pass')&&$('#l-pass').addEventListener('keydown',e=>{ if(e.key==='Enter') d
 
 /* ---------- TABS ---------- */
 function switchTab(t){
-  ['courses','calendar','faculty'].forEach(x=>{
+  ['courses','calendar','faculty','acessos'].forEach(x=>{
     $('#pane-'+x).classList.toggle('hidden', x!==t);
     document.querySelector(`.tab[data-tab="${x}"]`).classList.toggle('active', x===t);
   });
@@ -339,6 +351,64 @@ async function delRow(table, id, reload){
   const { error } = await sb.from(table).delete().eq('id',id);
   if(error){ alert('Erro: '+error.message); return; }
   reload();
+}
+
+/* ================= ACESSOS (Edge Function) ================= */
+const FN_URL = (cfg.SUPABASE_URL||'').replace(/\/$/,'') + '/functions/v1/manage-users';
+async function fnCall(payload){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(!session) throw new Error('Sessão expirada — faça login novamente.');
+  const res = await fetch(FN_URL, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+session.access_token, 'apikey': cfg.SUPABASE_ANON_KEY },
+    body: JSON.stringify(payload)
+  });
+  let j={}; try{ j = await res.json(); }catch(e){}
+  if(!res.ok) throw new Error(j.error || ('Erro '+res.status));
+  return j;
+}
+let ACESSOS=[];
+async function loadAcessos(){
+  const tb = $('#tb-acessos'); if(!tb) return;
+  try{
+    const { data } = await fnCall({action:'list'});
+    ACESSOS = data||[];
+    tb.innerHTML = ACESSOS.map(a=>`
+      <tr><td><b>${esc(a.nome)||'—'}</b></td><td>${esc(a.email)}</td><td>${esc(a.role)}</td>
+      <td class="muted">${(a.created_at||'').slice(0,10)}</td>
+      <td class="row-actions">
+        <button class="btn btn-sm" style="background:var(--gray-100)" onclick="resetSenha('${a.user_id}','${esc(a.email)}')">Redefinir senha</button>
+        <button class="btn btn-sm btn-danger" onclick="delAcesso('${a.user_id}','${esc(a.email)}')">Remover</button>
+      </td></tr>`).join('') || '<tr><td colspan="5" class="muted">Nenhum acesso cadastrado.</td></tr>';
+  }catch(e){
+    tb.innerHTML = `<tr><td colspan="5"><div class="msg err">Não foi possível carregar acessos: ${esc(e.message)}<br><span class="muted">A Edge Function <code>manage-users</code> já foi publicada no Supabase?</span></div></td></tr>`;
+  }
+}
+function editAcesso(){
+  openDlg('Novo acesso', `
+    <label>Nome</label><input id="a-nome" placeholder="Nome da pessoa">
+    <label>E-mail (login)</label><input id="a-email" type="email" autocomplete="off">
+    <label>Senha inicial (mín. 8 caracteres)</label><input id="a-pass" type="text" autocomplete="off" placeholder="a pessoa poderá trocar depois">
+    <label>Papel</label><select id="a-role"><option value="admin">Admin (acesso total)</option></select>
+    <div class="muted" style="margin-top:8px">O login é criado na hora e já entra na lista de acessos. Passe o e-mail e a senha inicial para a pessoa.</div>
+  `, async ()=>{
+    const email=val('a-email').trim(), password=val('a-pass'), nome=val('a-nome').trim(), role=val('a-role');
+    if(!email||!password) throw new Error('Informe e-mail e senha.');
+    $('#dlg-msg').textContent='Criando acesso...';
+    await fnCall({action:'create', email, password, nome, role});
+    dlg.close(); loadAcessos();
+  });
+}
+async function resetSenha(user_id, email){
+  const password = prompt('Nova senha para '+email+' (mín. 8 caracteres):');
+  if(!password) return;
+  try{ await fnCall({action:'reset_password', user_id, password}); alert('Senha redefinida.'); }
+  catch(e){ alert('Erro: '+e.message); }
+}
+async function delAcesso(user_id, email){
+  if(!confirm('Remover o acesso de '+email+'? O login será excluído.')) return;
+  try{ await fnCall({action:'delete', user_id}); loadAcessos(); }
+  catch(e){ alert('Erro: '+e.message); }
 }
 
 boot();
