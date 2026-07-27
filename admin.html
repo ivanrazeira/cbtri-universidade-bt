@@ -55,8 +55,8 @@ dialog::backdrop{background:rgba(15,35,64,.5)}
 <!-- ===== CONFIG (mesma do site público) ===== -->
 <script>
 window.UBT_CONFIG = {
-  SUPABASE_URL: "https://pxsrbyhsqpkcyxpermhp.supabase.co",
-  SUPABASE_ANON_KEY: "sb_publishable_nQTirXGrMVjA3N35J5GvIg_bHUch7gh"
+  SUPABASE_URL: "https://edbyrcyvlowcylljebmq.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_g-Hpp9Y3nIDRgva2nkSlcw_FiQTHkfs"
 };
 </script>
 
@@ -141,10 +141,12 @@ function showLogin(){ $('#login').classList.remove('hidden'); $('#app').classLis
 async function showApp(session){
   $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
   $('#who').textContent = session.user?.email || '';
-  // checa se a conta é admin (tem permissão de edição)
-  const { data: adm } = await sb.from('ubt_admins').select('user_id').eq('user_id', session.user.id).maybeSingle();
+  // checa permissão de edição. Em projeto isolado não há tabela ubt_admins
+  // (todo login já é staff) => se a tabela não existir, considera admin.
+  const { data: adm, error: admErr } = await sb.from('ubt_admins').select('user_id').eq('user_id', session.user.id).maybeSingle();
+  const isAdmin = !!admErr || !!adm;
   const banner = $('#not-admin');
-  if(banner) banner.classList.toggle('hidden', !!adm);
+  if(banner) banner.classList.toggle('hidden', isAdmin);
   loadCourses(); loadCalendar(); loadFaculty();
 }
 async function doLogin(){
