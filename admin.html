@@ -354,7 +354,8 @@ async function delRow(table, id, reload){
 }
 
 /* ================= ACESSOS (Edge Function) ================= */
-const FN_URL = (cfg.SUPABASE_URL||'').replace(/\/$/,'') + '/functions/v1/manage-users';
+// slug real da Edge Function publicada (foi criada como "quick-action" no painel)
+const FN_URL = (cfg.SUPABASE_URL||'').replace(/\/$/,'') + '/functions/v1/quick-action';
 async function fnCall(payload){
   const { data:{ session } } = await sb.auth.getSession();
   if(!session) throw new Error('Sessão expirada — faça login novamente.');
