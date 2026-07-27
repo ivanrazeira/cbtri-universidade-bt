@@ -1000,12 +1000,10 @@ const TIMELINE = [
   {step:3, title:"World Triathlon Level 1", desc:"Certificação internacional reconhecida pela World Triathlon em mais de 130 países.", color:"#facc15", bg:"linear-gradient(135deg,#0a3a6e,#0077b6)", badge:"Certificação Internacional", badgeColor:"rgba(250,204,21,.15)", badgeText:"#facc15"},
 ];
 
+// Linhas EXTRAS do calendário (turmas históricas). Os cursos ativos entram automaticamente.
 let CALENDAR = [
   {curso:"CBTri Nível 1 — Turma 1", periodo:"27/02/2026 a 07/03/2026", inscricoes:"02/01/2026 a 03/02/2026", vagas:"30/30", formato:"Online", status:"done"},
-  {curso:"Curso Nacional Nível 1", periodo:"A definir", inscricoes:"A definir", vagas:"30", formato:"Online", status:"soon"},
   {curso:"Curso Nacional Nível 2 — 1ª Turma", periodo:"2026", inscricoes:"Encerradas", vagas:"30/30", formato:"Online", status:"sold"},
-  {curso:"World Triathlon Level 1 Online", periodo:"03/08 a 09/2026", inscricoes:"08/07 a 15/07/2026", vagas:"20/20", formato:"100% Online", status:"sold"},
-  {curso:"World Triathlon Level 1 Híbrido", periodo:"13/10 a 29/11/2026", inscricoes:"23/09 a 30/09/2026", vagas:"20", formato:"Online + Presencial", status:"open"},
 ];
 
 let FACULTY = [
@@ -1238,8 +1236,17 @@ function init(){
   buildTimeline("timeline-home");
   buildTimeline("timeline-trilha");
 
-  // Calendar
-  document.getElementById("cal-body").innerHTML = CALENDAR.map(r=>
+  // Calendar — cursos ativos aparecem automaticamente; CALENDAR guarda linhas extras (ex.: turmas históricas)
+  const calDerived = COURSES.map(c=>({
+    curso: c.title,
+    periodo: c.periodo || "A definir",
+    inscricoes: c.inscricoes || "A definir",
+    vagas: c.vagas==null ? "A definir" : (c.vagas_ocupadas ? c.vagas_ocupadas+"/"+c.vagas : String(c.vagas)),
+    formato: c.format || "—",
+    status: c.status
+  }));
+  const calRows = calDerived.concat(CALENDAR || []);
+  document.getElementById("cal-body").innerHTML = calRows.map(r=>
     `<tr><td><strong>${r.curso}</strong></td><td>${r.periodo}</td><td>${r.inscricoes}</td><td>${r.vagas}</td><td>${r.formato}</td><td>${statusLabel(r.status)}</td></tr>`
   ).join("");
 
@@ -1376,7 +1383,7 @@ function closeSidebar(){
    ============================================================ */
 function ubtMapCourse(r){ return {
   id:r.id, title:r.title, status:r.status, format:r.format,
-  vagas:r.vagas, cargaHoraria:r.carga_horaria, desc:r.descricao,
+  vagas:r.vagas, vagas_ocupadas:r.vagas_ocupadas, cargaHoraria:r.carga_horaria, desc:r.descricao,
   featured:r.featured, intl:r.intl, periodo:r.periodo, inscricoes:r.inscricoes,
   link:r.link, cronograma:r.cronograma, publico:r.publico
 };}
