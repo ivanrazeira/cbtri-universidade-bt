@@ -90,6 +90,7 @@ window.UBT_CONFIG = {
       <div class="tab active" data-tab="courses" onclick="switchTab('courses')">Cursos</div>
       <div class="tab" data-tab="calendar" onclick="switchTab('calendar')">Calendário</div>
       <div class="tab" data-tab="faculty" onclick="switchTab('faculty')">Docentes</div>
+      <div class="tab" data-tab="waitlist" onclick="switchTab('waitlist')">📋 Lista de espera</div>
       <div class="tab" id="tab-acessos" data-tab="acessos" onclick="switchTab('acessos')" style="margin-left:auto">🔑 Acessos</div>
     </div>
 
@@ -112,6 +113,14 @@ window.UBT_CONFIG = {
         <h3 style="margin:0">Docentes</h3><button class="btn btn-primary btn-sm" onclick="editFac(null)">+ Novo docente</button>
       </div>
       <div class="card"><table><thead><tr><th>Ordem</th><th>Nome</th><th>Função</th><th>Foto</th><th>Ativo</th><th></th></tr></thead><tbody id="tb-faculty"></tbody></table></div>
+    </div>
+
+    <div id="pane-waitlist" class="hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 style="margin:0">Lista de espera <span id="wl-count" class="muted"></span></h3>
+        <button class="btn btn-primary btn-sm" onclick="exportWaitlistCsv()">⬇ Exportar CSV</button>
+      </div>
+      <div class="card"><table><thead><tr><th>Data</th><th>Curso</th><th>Nome</th><th>E-mail</th><th>WhatsApp</th><th></th></tr></thead><tbody id="tb-waitlist"></tbody></table></div>
     </div>
 
     <div id="pane-acessos" class="hidden">
@@ -160,7 +169,7 @@ async function showApp(session){
   if(banner) banner.classList.toggle('hidden', isAdmin);
   const tabAcessos = $('#tab-acessos');
   if(tabAcessos) tabAcessos.classList.toggle('hidden', !isAdmin);  // só admin gerencia acessos
-  loadCourses(); loadCalendar(); loadFaculty();
+  loadCourses(); loadCalendar(); loadFaculty(); loadWaitlist();
   if(isAdmin) loadAcessos();
 }
 async function doLogin(){
@@ -174,7 +183,7 @@ $('#l-pass')&&$('#l-pass').addEventListener('keydown',e=>{ if(e.key==='Enter') d
 
 /* ---------- TABS ---------- */
 function switchTab(t){
-  ['courses','calendar','faculty','acessos'].forEach(x=>{
+  ['courses','calendar','faculty','waitlist','acessos'].forEach(x=>{
     $('#pane-'+x).classList.toggle('hidden', x!==t);
     document.querySelector(`.tab[data-tab="${x}"]`).classList.toggle('active', x===t);
   });
@@ -351,6 +360,29 @@ async function delRow(table, id, reload){
   const { error } = await sb.from(table).delete().eq('id',id);
   if(error){ alert('Erro: '+error.message); return; }
   reload();
+}
+
+/* ================= LISTA DE ESPERA ================= */
+let WAIT=[];
+async function loadWaitlist(){
+  const tb = $('#tb-waitlist'); if(!tb) return;
+  const { data, error } = await sb.from('ubt_waitlist').select('*').order('created_at',{ascending:false});
+  if(error){ tb.innerHTML = `<tr><td colspan="6"><div class="msg err">Não foi possível carregar: ${esc(error.message)}</div></td></tr>`; return; }
+  WAIT = data||[];
+  const cnt = $('#wl-count'); if(cnt) cnt.textContent = WAIT.length ? '· '+WAIT.length+' inscrição(ões)' : '';
+  tb.innerHTML = WAIT.map(w=>`
+    <tr><td class="muted" style="white-space:nowrap">${(w.created_at||'').slice(0,10)}</td>
+    <td>${esc(w.course_title)}</td><td><b>${esc(w.nome)}</b></td><td>${esc(w.email)}</td><td>${esc(w.telefone)||'—'}</td>
+    <td class="row-actions"><button class="btn btn-sm btn-danger" onclick="delRow('ubt_waitlist',${w.id},loadWaitlist)">Remover</button></td></tr>`
+  ).join('') || '<tr><td colspan="6" class="muted">Nenhuma inscrição na lista de espera.</td></tr>';
+}
+function exportWaitlistCsv(){
+  if(!WAIT.length){ alert('Nada para exportar.'); return; }
+  const head=['Data','Curso','Nome','Email','WhatsApp'];
+  const rows=WAIT.map(w=>[(w.created_at||'').slice(0,19).replace('T',' '), w.course_title||'', w.nome||'', w.email||'', w.telefone||'']);
+  const csv=[head,...rows].map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='lista-espera.csv'; a.click(); URL.revokeObjectURL(a.href);
 }
 
 /* ================= ACESSOS (Edge Function) ================= */

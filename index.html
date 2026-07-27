@@ -1301,7 +1301,16 @@ function toggleWaitlist(id) {
   form.classList.toggle('open');
 }
 
-function submitWaitlist(id, curso) {
+function wlWebhookFallback(nome, email, tel, curso){
+  try {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', WL_WEBHOOK, true);
+    xhr.setRequestHeader('Content-Type', 'text/plain');
+    xhr.send(JSON.stringify({ nome, email, telefone: tel, cursos: curso + ' — Lista de Espera', origem: 'BTA Lista de Espera (fallback)' }));
+  } catch(e){}
+}
+
+async function submitWaitlist(id, curso) {
   const nome  = (document.getElementById('wl-nome-'+id)||{}).value||'';
   const email = (document.getElementById('wl-email-'+id)||{}).value||'';
   const tel   = (document.getElementById('wl-tel-'+id)||{}).value||'';
@@ -1315,18 +1324,22 @@ function submitWaitlist(id, curso) {
   btn.textContent = 'Enviando...';
   btn.disabled = true;
 
-  const payload = JSON.stringify({
-    nome, email, telefone: tel,
-    cursos: curso + ' — Lista de Espera',
-    origem: 'BTA Lista de Espera'
-  });
+  // grava no Supabase; se falhar, cai no webhook antigo (não perde a inscrição)
+  const sb = ubtClient();
+  try {
+    if(!sb) throw new Error('sem conexão com o banco');
+    const { error } = await sb.from('ubt_waitlist').insert({
+      course_id: (typeof id === 'number' ? id : null),
+      course_title: curso,
+      nome: nome.trim(), email: email.trim(), telefone: tel.trim() || null
+    });
+    if(error) throw error;
+  } catch(e) {
+    console.warn('Waitlist: gravando via fallback', e);
+    wlWebhookFallback(nome, email, tel, curso);
+  }
 
-  const xhr = new XMLHttpRequest();
-  xhr.open('POST', WL_WEBHOOK, true);
-  xhr.setRequestHeader('Content-Type', 'text/plain');
-  xhr.send(payload);
-
-  // Show success + redirect to WhatsApp group
+  // sucesso (banco ou fallback) → mostra link do grupo WhatsApp
   document.getElementById('wl-btn-'+id).style.display = 'none';
   const ok = document.getElementById('wl-ok-'+id);
   ok.innerHTML = '✅ Inscrito! <a href="'+WL_GROUP+'" target="_blank" style="color:var(--blue);font-weight:700;text-decoration:underline">Entrar no grupo WhatsApp →</a>';
@@ -1383,13 +1396,20 @@ function ubtMapCalendar(r){ return {
   vagas:r.vagas, formato:r.formato, status:r.status
 };}
 
-async function ubtLoadFromSupabase(){
+let __ubtSb = null;
+function ubtClient(){
+  if(__ubtSb) return __ubtSb;
   const cfg = window.UBT_CONFIG || {};
-  if(!cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY || !window.supabase){
+  if(!cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY || !window.supabase) return null;
+  __ubtSb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+  return __ubtSb;
+}
+async function ubtLoadFromSupabase(){
+  const sb = ubtClient();
+  if(!sb){
     console.info("UBT: Supabase não configurado — exibindo dados locais.");
     return false;
   }
-  const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
   const [c,f,cal] = await Promise.all([
     sb.from("ubt_courses").select("*").eq("ativo",true).order("ordem"),
     sb.from("ubt_faculty").select("*").eq("ativo",true).order("ordem"),
