@@ -85,6 +85,7 @@ window.UBT_CONFIG = {
     </div>
   </div>
   <div class="wrap">
+    <div id="not-admin" class="msg err hidden">⚠️ Sua conta está logada, mas <b>não tem permissão de edição</b> na Universidade BT. Peça para ser adicionada à lista de admins (tabela <code>ubt_admins</code>). Você consegue visualizar, mas alterações serão bloqueadas.</div>
     <div class="tabs">
       <div class="tab active" data-tab="courses" onclick="switchTab('courses')">Cursos</div>
       <div class="tab" data-tab="calendar" onclick="switchTab('calendar')">Calendário</div>
@@ -137,9 +138,13 @@ async function boot(){
   sb.auth.onAuthStateChange((_e, s)=>{ if(s) showApp(s); else showLogin(); });
 }
 function showLogin(){ $('#login').classList.remove('hidden'); $('#app').classList.add('hidden'); }
-function showApp(session){
+async function showApp(session){
   $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
   $('#who').textContent = session.user?.email || '';
+  // checa se a conta é admin (tem permissão de edição)
+  const { data: adm } = await sb.from('ubt_admins').select('user_id').eq('user_id', session.user.id).maybeSingle();
+  const banner = $('#not-admin');
+  if(banner) banner.classList.toggle('hidden', !!adm);
   loadCourses(); loadCalendar(); loadFaculty();
 }
 async function doLogin(){
