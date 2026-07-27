@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin · Universidade BT</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--navy:#0f2340;--navy-light:#1e3a6e;--blue:#00a8e8;--blue-light:#33bbf0;--white:#fff;
+  --gray-50:#f1f5f9;--gray-100:#e2e8f0;--gray-200:#cbd5e1;--gray-600:#475569;--muted:#64748b;
+  --text:#1e293b;--green:#16a34a;--red:#dc2626;--radius:12px;--shadow:0 1px 3px rgba(0,0,0,.08)}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--gray-50);color:var(--text);font-size:14px}
+.topbar{background:var(--navy);color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid var(--blue)}
+.topbar b{font-size:15px}.topbar .sub{color:var(--blue-light);font-size:11px}
+.btn{border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer}
+.btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{background:var(--blue-light)}
+.btn-ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.3)}
+.btn-danger{background:var(--red);color:#fff}
+.btn-sm{padding:5px 10px;font-size:12px}
+.wrap{max-width:1100px;margin:0 auto;padding:20px}
+.tabs{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap}
+.tab{padding:9px 16px;border-radius:8px;background:var(--white);border:1px solid var(--gray-200);cursor:pointer;font-weight:600;color:var(--gray-600)}
+.tab.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.card{background:#fff;border:1px solid var(--gray-100);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--gray-100)}
+th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+tr:hover td{background:var(--gray-50)}
+.pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700}
+.pill.soon{background:rgba(250,204,21,.15);color:#92400e}.pill.open{background:rgba(22,163,74,.12);color:var(--green)}
+.pill.sold{background:rgba(220,38,38,.12);color:var(--red)}.pill.done{background:var(--gray-100);color:var(--gray-600)}
+.pill.off{background:var(--gray-100);color:var(--muted)}
+label{display:block;font-size:12px;font-weight:600;color:var(--gray-600);margin:10px 0 4px}
+input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px;font-family:inherit}
+textarea{resize:vertical;min-height:60px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.row-actions{display:flex;gap:6px;justify-content:flex-end}
+.hidden{display:none!important}
+#login{max-width:360px;margin:80px auto;text-align:center}
+#login .card{text-align:left}
+.msg{padding:10px 12px;border-radius:8px;font-size:13px;margin:10px 0}
+.msg.err{background:rgba(220,38,38,.1);color:var(--red)}.msg.ok{background:rgba(22,163,74,.1);color:var(--green)}
+.muted{color:var(--muted);font-size:12px}
+.checkline{display:flex;align-items:center;gap:8px;margin-top:12px}.checkline input{width:auto}
+dialog{border:none;border-radius:var(--radius);box-shadow:0 10px 40px rgba(0,0,0,.25);padding:0;max-width:640px;width:92%}
+dialog::backdrop{background:rgba(15,35,64,.5)}
+.dlg-hd{padding:14px 18px;border-bottom:1px solid var(--gray-100);display:flex;justify-content:space-between;align-items:center}
+.dlg-bd{padding:18px;max-height:70vh;overflow:auto}
+.dlg-ft{padding:14px 18px;border-top:1px solid var(--gray-100);display:flex;justify-content:flex-end;gap:8px}
+</style>
+</head>
+<body>
+
+<!-- ===== CONFIG (mesma do site público) ===== -->
+<script>
+window.UBT_CONFIG = {
+  SUPABASE_URL: "https://pxsrbyhsqpkcyxpermhp.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_nQTirXGrMVjA3N35J5GvIg_bHUch7gh"
+};
+</script>
+
+<!-- ===== LOGIN ===== -->
+<div id="login">
+  <h2 style="color:var(--navy)">Admin · Universidade BT</h2>
+  <div class="card">
+    <label>E-mail</label>
+    <input type="email" id="l-email" autocomplete="username">
+    <label>Senha</label>
+    <input type="password" id="l-pass" autocomplete="current-password">
+    <div id="l-msg"></div>
+    <button class="btn btn-primary" style="width:100%;margin-top:14px" onclick="doLogin()">Entrar</button>
+  </div>
+  <p class="muted">Acesso restrito à equipe CBTri.</p>
+</div>
+
+<!-- ===== APP ===== -->
+<div id="app" class="hidden">
+  <div class="topbar">
+    <div><b>Universidade BT</b> <span class="sub">Painel de conteúdo</span></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span id="who" class="sub"></span>
+      <a class="btn btn-ghost btn-sm" href="index.html" target="_blank">Ver site ↗</a>
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()">Sair</button>
+    </div>
+  </div>
+  <div class="wrap">
+    <div class="tabs">
+      <div class="tab active" data-tab="courses" onclick="switchTab('courses')">Cursos</div>
+      <div class="tab" data-tab="calendar" onclick="switchTab('calendar')">Calendário</div>
+      <div class="tab" data-tab="faculty" onclick="switchTab('faculty')">Docentes</div>
+    </div>
+
+    <div id="pane-courses">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 style="margin:0">Cursos</h3><button class="btn btn-primary btn-sm" onclick="editCourse(null)">+ Novo curso</button>
+      </div>
+      <div class="card"><table><thead><tr><th>Ordem</th><th>Título</th><th>Status</th><th>Vagas</th><th>Destaque</th><th>Intl</th><th>Ativo</th><th></th></tr></thead><tbody id="tb-courses"></tbody></table></div>
+    </div>
+
+    <div id="pane-calendar" class="hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 style="margin:0">Calendário</h3><button class="btn btn-primary btn-sm" onclick="editCal(null)">+ Nova linha</button>
+      </div>
+      <div class="card"><table><thead><tr><th>Ordem</th><th>Curso</th><th>Período</th><th>Inscrições</th><th>Vagas</th><th>Status</th><th>Ativo</th><th></th></tr></thead><tbody id="tb-calendar"></tbody></table></div>
+    </div>
+
+    <div id="pane-faculty" class="hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 style="margin:0">Docentes</h3><button class="btn btn-primary btn-sm" onclick="editFac(null)">+ Novo docente</button>
+      </div>
+      <div class="card"><table><thead><tr><th>Ordem</th><th>Nome</th><th>Função</th><th>Foto</th><th>Ativo</th><th></th></tr></thead><tbody id="tb-faculty"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== DIÁLOGO GENÉRICO ===== -->
+<dialog id="dlg">
+  <div class="dlg-hd"><b id="dlg-title">Editar</b><button class="btn btn-ghost btn-sm" style="color:var(--muted)" onclick="dlg.close()">✕</button></div>
+  <div class="dlg-bd" id="dlg-body"></div>
+  <div class="dlg-ft"><span id="dlg-msg" class="muted" style="margin-right:auto"></span><button class="btn" style="background:var(--gray-100)" onclick="dlg.close()">Cancelar</button><button class="btn btn-primary" id="dlg-save">Salvar</button></div>
+</dialog>
+
+<script>
+const cfg = window.UBT_CONFIG;
+const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+const $ = s => document.querySelector(s);
+const esc = s => (s==null?"":String(s)).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const slug = s => (s||"").normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
+const pill = s => `<span class="pill ${s}">${({soon:'Em breve',open:'Aberto',sold:'Esgotado',done:'Realizado'})[s]||s}</span>`;
+const bool = b => b?'✅':'—';
+
+/* ---------- AUTH ---------- */
+async function boot(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(session){ showApp(session); } else { showLogin(); }
+  sb.auth.onAuthStateChange((_e, s)=>{ if(s) showApp(s); else showLogin(); });
+}
+function showLogin(){ $('#login').classList.remove('hidden'); $('#app').classList.add('hidden'); }
+function showApp(session){
+  $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
+  $('#who').textContent = session.user?.email || '';
+  loadCourses(); loadCalendar(); loadFaculty();
+}
+async function doLogin(){
+  const email=$('#l-email').value.trim(), password=$('#l-pass').value;
+  $('#l-msg').innerHTML='';
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if(error) $('#l-msg').innerHTML = `<div class="msg err">${esc(error.message)}</div>`;
+}
+async function doLogout(){ await sb.auth.signOut(); }
+$('#l-pass')&&$('#l-pass').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+
+/* ---------- TABS ---------- */
+function switchTab(t){
+  ['courses','calendar','faculty'].forEach(x=>{
+    $('#pane-'+x).classList.toggle('hidden', x!==t);
+    document.querySelector(`.tab[data-tab="${x}"]`).classList.toggle('active', x===t);
+  });
+}
+
+/* ---------- DIÁLOGO ---------- */
+const dlg = $('#dlg');
+function openDlg(title, bodyHtml, onSave){
+  $('#dlg-title').textContent = title; $('#dlg-body').innerHTML = bodyHtml; $('#dlg-msg').textContent='';
+  const btn = $('#dlg-save'); const fresh = btn.cloneNode(true); btn.parentNode.replaceChild(fresh, btn);
+  fresh.addEventListener('click', async ()=>{ fresh.disabled=true; try{ await onSave(); } catch(e){ $('#dlg-msg').innerHTML=`<span style="color:var(--red)">${esc(e.message||e)}</span>`; } fresh.disabled=false; });
+  dlg.showModal();
+}
+const val = id => { const el=document.getElementById(id); return el? el.value : ''; };
+const chk = id => { const el=document.getElementById(id); return el? el.checked : false; };
+const numOrNull = v => v===''||v==null ? null : Number(v);
+const linesToArr = v => v.split('\n').map(x=>x.trim()).filter(Boolean);
+const arrToLines = a => (a||[]).join('\n');
+
+/* ================= CURSOS ================= */
+let COURSES=[];
+async function loadCourses(){
+  const { data, error } = await sb.from('ubt_courses').select('*').order('ordem');
+  if(error){ console.error(error); return; }
+  COURSES = data;
+  $('#tb-courses').innerHTML = data.map(c=>`
+    <tr>
+      <td>${c.ordem}</td><td><b>${esc(c.title)}</b></td><td>${pill(c.status)}</td>
+      <td>${c.vagas==null?'—':(c.vagas_ocupadas||0)+'/'+c.vagas}</td><td>${bool(c.featured)}</td><td>${bool(c.intl)}</td>
+      <td>${c.ativo?'✅':'<span class="pill off">oculto</span>'}</td>
+      <td class="row-actions"><button class="btn btn-sm" style="background:var(--gray-100)" onclick="editCourse(${c.id})">Editar</button>
+      <button class="btn btn-sm btn-danger" onclick="delRow('ubt_courses',${c.id},loadCourses)">Excluir</button></td>
+    </tr>`).join('');
+}
+function editCourse(id){
+  const c = COURSES.find(x=>x.id===id) || {status:'soon',featured:false,intl:false,ativo:true,ordem:(COURSES.length),vagas_ocupadas:0};
+  openDlg(id?'Editar curso':'Novo curso', `
+    <label>Título</label><input id="f-title" value="${esc(c.title)}">
+    <div class="grid2">
+      <div><label>Status</label><select id="f-status">${['soon','open','sold','done'].map(s=>`<option value="${s}" ${c.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
+      <div><label>Formato</label><input id="f-format" value="${esc(c.format)}"></div>
+      <div><label>Vagas (total)</label><input id="f-vagas" type="number" value="${c.vagas??''}"></div>
+      <div><label>Vagas ocupadas</label><input id="f-vagasocup" type="number" value="${c.vagas_ocupadas??0}"></div>
+      <div><label>Carga horária</label><input id="f-carga" value="${esc(c.carga_horaria)}"></div>
+      <div><label>Ordem</label><input id="f-ordem" type="number" value="${c.ordem??0}"></div>
+      <div><label>Período</label><input id="f-periodo" value="${esc(c.periodo)}"></div>
+      <div><label>Inscrições</label><input id="f-inscricoes" value="${esc(c.inscricoes)}"></div>
+    </div>
+    <label>Descrição</label><textarea id="f-desc">${esc(c.descricao)}</textarea>
+    <label>Link de inscrição (URL)</label><input id="f-link" value="${esc(c.link)}">
+    <label>Público-alvo (separado por vírgula)</label><input id="f-publico" value="${esc((c.publico||[]).join(', '))}">
+    <label>Cronograma (JSON — deixe vazio se não tiver)</label>
+    <textarea id="f-crono" style="min-height:120px;font-family:monospace;font-size:12px">${esc(c.cronograma? JSON.stringify(c.cronograma,null,2):'')}</textarea>
+    <div class="checkline"><input type="checkbox" id="f-featured" ${c.featured?'checked':''}><label style="margin:0">Destaque na home</label></div>
+    <div class="checkline"><input type="checkbox" id="f-intl" ${c.intl?'checked':''}><label style="margin:0">Certificação internacional</label></div>
+    <div class="checkline"><input type="checkbox" id="f-ativo" ${c.ativo?'checked':''}><label style="margin:0">Ativo (visível no site)</label></div>
+  `, async ()=>{
+    let crono=null; const ct=val('f-crono').trim();
+    if(ct){ try{ crono=JSON.parse(ct); }catch(e){ throw new Error('Cronograma: JSON inválido — '+e.message); } }
+    const pub = val('f-publico').split(',').map(x=>x.trim()).filter(Boolean);
+    const rec = {
+      title:val('f-title'), status:val('f-status'), format:val('f-format')||null,
+      vagas:numOrNull(val('f-vagas')), vagas_ocupadas:Number(val('f-vagasocup')||0),
+      carga_horaria:val('f-carga')||null, descricao:val('f-desc')||null,
+      periodo:val('f-periodo')||null, inscricoes:val('f-inscricoes')||null, link:val('f-link')||null,
+      publico: pub.length?pub:null, cronograma:crono,
+      featured:chk('f-featured'), intl:chk('f-intl'), ativo:chk('f-ativo'), ordem:Number(val('f-ordem')||0)
+    };
+    const q = id ? sb.from('ubt_courses').update(rec).eq('id',id) : sb.from('ubt_courses').insert(rec);
+    const { error } = await q; if(error) throw error;
+    dlg.close(); loadCourses();
+  });
+}
+
+/* ================= CALENDÁRIO ================= */
+let CAL=[];
+async function loadCalendar(){
+  const { data, error } = await sb.from('ubt_calendar').select('*').order('ordem');
+  if(error){ console.error(error); return; }
+  CAL=data;
+  $('#tb-calendar').innerHTML = data.map(r=>`
+    <tr><td>${r.ordem}</td><td><b>${esc(r.curso)}</b></td><td>${esc(r.periodo)}</td><td>${esc(r.inscricoes)}</td>
+    <td>${esc(r.vagas)}</td><td>${pill(r.status)}</td><td>${r.ativo?'✅':'<span class="pill off">oculto</span>'}</td>
+    <td class="row-actions"><button class="btn btn-sm" style="background:var(--gray-100)" onclick="editCal(${r.id})">Editar</button>
+    <button class="btn btn-sm btn-danger" onclick="delRow('ubt_calendar',${r.id},loadCalendar)">Excluir</button></td></tr>`).join('');
+}
+function editCal(id){
+  const r = CAL.find(x=>x.id===id) || {status:'soon',ativo:true,ordem:CAL.length};
+  openDlg(id?'Editar linha':'Nova linha', `
+    <label>Curso (rótulo)</label><input id="c-curso" value="${esc(r.curso)}">
+    <div class="grid2">
+      <div><label>Período</label><input id="c-periodo" value="${esc(r.periodo)}"></div>
+      <div><label>Inscrições</label><input id="c-inscricoes" value="${esc(r.inscricoes)}"></div>
+      <div><label>Vagas (texto)</label><input id="c-vagas" value="${esc(r.vagas)}"></div>
+      <div><label>Formato</label><input id="c-formato" value="${esc(r.formato)}"></div>
+      <div><label>Status</label><select id="c-status">${['soon','open','sold','done'].map(s=>`<option value="${s}" ${r.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
+      <div><label>Ordem</label><input id="c-ordem" type="number" value="${r.ordem??0}"></div>
+    </div>
+    <div class="checkline"><input type="checkbox" id="c-ativo" ${r.ativo?'checked':''}><label style="margin:0">Ativo</label></div>
+  `, async ()=>{
+    const rec={curso:val('c-curso'),periodo:val('c-periodo')||null,inscricoes:val('c-inscricoes')||null,
+      vagas:val('c-vagas')||null,formato:val('c-formato')||null,status:val('c-status'),
+      ativo:chk('c-ativo'),ordem:Number(val('c-ordem')||0)};
+    const q = id ? sb.from('ubt_calendar').update(rec).eq('id',id) : sb.from('ubt_calendar').insert(rec);
+    const { error } = await q; if(error) throw error;
+    dlg.close(); loadCalendar();
+  });
+}
+
+/* ================= DOCENTES ================= */
+let FAC=[];
+async function loadFaculty(){
+  const { data, error } = await sb.from('ubt_faculty').select('*').order('ordem');
+  if(error){ console.error(error); return; }
+  FAC=data;
+  const base=(cfg.SUPABASE_URL||'').replace(/\/$/,'')+'/storage/v1/object/public/ubt/';
+  $('#tb-faculty').innerHTML = data.map(f=>{
+    const src = f.photo_url ? (/^https?:/.test(f.photo_url)?f.photo_url:base+f.photo_url) : null;
+    return `<tr><td>${f.ordem}</td><td><b>${esc(f.name)}</b></td><td>${esc(f.role)}</td>
+      <td>${src?`<img src="${src}" style="width:34px;height:34px;border-radius:50%;object-fit:cover">`:'—'}</td>
+      <td>${f.ativo?'✅':'<span class="pill off">oculto</span>'}</td>
+      <td class="row-actions"><button class="btn btn-sm" style="background:var(--gray-100)" onclick="editFac(${f.id})">Editar</button>
+      <button class="btn btn-sm btn-danger" onclick="delRow('ubt_faculty',${f.id},loadFaculty)">Excluir</button></td></tr>`;
+  }).join('');
+}
+function editFac(id){
+  const f = FAC.find(x=>x.id===id) || {formacao:[],cert:[],experiencia:[],specs:[],guest:false,ativo:true,ordem:FAC.length};
+  openDlg(id?'Editar docente':'Novo docente', `
+    <div class="grid2">
+      <div><label>Nome</label><input id="d-name" value="${esc(f.name)}"></div>
+      <div><label>Função</label><input id="d-role" value="${esc(f.role)}"></div>
+      <div><label>Iniciais (fallback)</label><input id="d-initials" value="${esc(f.initials)}"></div>
+      <div><label>Badge</label><input id="d-badge" value="${esc(f.badge)}"></div>
+      <div><label>Link (Lattes/currículo)</label><input id="d-link" value="${esc(f.link)}"></div>
+      <div><label>Ordem</label><input id="d-ordem" type="number" value="${f.ordem??0}"></div>
+    </div>
+    <label>Formação (uma por linha)</label><textarea id="d-formacao">${esc(arrToLines(f.formacao))}</textarea>
+    <label>Certificações (uma por linha)</label><textarea id="d-cert">${esc(arrToLines(f.cert))}</textarea>
+    <label>Experiência (uma por linha)</label><textarea id="d-exp">${esc(arrToLines(f.experiencia))}</textarea>
+    <label>Especialidades (uma por linha)</label><textarea id="d-specs">${esc(arrToLines(f.specs))}</textarea>
+    <label>Foto (envia para o Storage)</label><input type="file" id="d-photo" accept="image/*">
+    <div class="muted">Atual: ${f.photo_url?esc(f.photo_url):'nenhuma'}</div>
+    <div class="checkline"><input type="checkbox" id="d-guest" ${f.guest?'checked':''}><label style="margin:0">Convidado (avatar especial)</label></div>
+    <div class="checkline"><input type="checkbox" id="d-ativo" ${f.ativo?'checked':''}><label style="margin:0">Ativo</label></div>
+  `, async ()=>{
+    const rec={name:val('d-name'),role:val('d-role')||null,initials:val('d-initials')||null,badge:val('d-badge')||null,
+      link:val('d-link')||null,formacao:linesToArr(val('d-formacao')),cert:linesToArr(val('d-cert')),
+      experiencia:linesToArr(val('d-exp')),specs:linesToArr(val('d-specs')),
+      guest:chk('d-guest'),ativo:chk('d-ativo'),ordem:Number(val('d-ordem')||0)};
+    // upload de foto, se houver
+    const file = document.getElementById('d-photo').files[0];
+    if(file){
+      const path = 'faculty/'+ (slug(rec.name)||('docente-'+Date.now())) +'.jpg';
+      $('#dlg-msg').textContent='Enviando foto...';
+      const up = await sb.storage.from('ubt').upload(path, file, {upsert:true, contentType:file.type});
+      if(up.error) throw new Error('Upload da foto: '+up.error.message);
+      rec.photo_url = path;
+    }
+    const q = id ? sb.from('ubt_faculty').update(rec).eq('id',id) : sb.from('ubt_faculty').insert(rec);
+    const { error } = await q; if(error) throw error;
+    dlg.close(); loadFaculty();
+  });
+}
+
+/* ---------- excluir ---------- */
+async function delRow(table, id, reload){
+  if(!confirm('Excluir este registro? Esta ação não pode ser desfeita.')) return;
+  const { error } = await sb.from(table).delete().eq('id',id);
+  if(error){ alert('Erro: '+error.message); return; }
+  reload();
+}
+
+boot();
+</script>
+</body>
+</html>
