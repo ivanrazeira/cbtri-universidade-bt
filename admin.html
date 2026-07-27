@@ -96,7 +96,7 @@ window.UBT_CONFIG = {
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <h3 style="margin:0">Cursos</h3><button class="btn btn-primary btn-sm" onclick="editCourse(null)">+ Novo curso</button>
       </div>
-      <div class="card"><table><thead><tr><th>Ordem</th><th>Título</th><th>Status</th><th>Vagas</th><th>Destaque</th><th>Intl</th><th>Ativo</th><th></th></tr></thead><tbody id="tb-courses"></tbody></table></div>
+      <div class="card"><table><thead><tr><th>Ordem</th><th>Título</th><th>Categoria</th><th>Status</th><th>Vagas</th><th>Destaque</th><th>Ativo</th><th></th></tr></thead><tbody id="tb-courses"></tbody></table></div>
     </div>
 
     <div id="pane-calendar" class="hidden">
@@ -129,6 +129,8 @@ const $ = s => document.querySelector(s);
 const esc = s => (s==null?"":String(s)).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 const slug = s => (s||"").normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
 const pill = s => `<span class="pill ${s}">${({soon:'Em breve',open:'Aberto',sold:'Esgotado',done:'Realizado'})[s]||s}</span>`;
+const CATS = {certificacao_bt:'Certificação Brasil Triathlon', certificacao_wt:'Certificação World Triathlon', livre:'Curso Livre'};
+const catLabel = c => CATS[c] || '—';
 const bool = b => b?'✅':'—';
 
 /* ---------- AUTH ---------- */
@@ -188,8 +190,8 @@ async function loadCourses(){
   COURSES = data;
   $('#tb-courses').innerHTML = data.map(c=>`
     <tr>
-      <td>${c.ordem}</td><td><b>${esc(c.title)}</b></td><td>${pill(c.status)}</td>
-      <td>${c.vagas==null?'—':(c.vagas_ocupadas||0)+'/'+c.vagas}</td><td>${bool(c.featured)}</td><td>${bool(c.intl)}</td>
+      <td>${c.ordem}</td><td><b>${esc(c.title)}</b></td><td>${esc(catLabel(c.categoria))}</td><td>${pill(c.status)}</td>
+      <td>${c.vagas==null?'—':(c.vagas_ocupadas||0)+'/'+c.vagas}</td><td>${bool(c.featured)}</td>
       <td>${c.ativo?'✅':'<span class="pill off">oculto</span>'}</td>
       <td class="row-actions"><button class="btn btn-sm" style="background:var(--gray-100)" onclick="editCourse(${c.id})">Editar</button>
       <button class="btn btn-sm btn-danger" onclick="delRow('ubt_courses',${c.id},loadCourses)">Excluir</button></td>
@@ -199,6 +201,12 @@ function editCourse(id){
   const c = COURSES.find(x=>x.id===id) || {status:'soon',featured:false,intl:false,ativo:true,ordem:(COURSES.length),vagas_ocupadas:0};
   openDlg(id?'Editar curso':'Novo curso', `
     <label>Título</label><input id="f-title" value="${esc(c.title)}">
+    <label>Categoria</label>
+    <select id="f-categoria">
+      <option value="" ${!c.categoria?'selected':''}>— selecione —</option>
+      ${Object.entries(CATS).map(([k,v])=>`<option value="${k}" ${c.categoria===k?'selected':''}>${v}</option>`).join('')}
+    </select>
+    <div class="muted" style="margin-top:4px">Certificação (BT/WT) = formação oficial com validade. Curso Livre = feito com parceiros, sem validade de certificação, soma conhecimento à grade do treinador.</div>
     <div class="grid2">
       <div><label>Status</label><select id="f-status">${['soon','open','sold','done'].map(s=>`<option value="${s}" ${c.status===s?'selected':''}>${s}</option>`).join('')}</select></div>
       <div><label>Formato</label><input id="f-format" value="${esc(c.format)}"></div>
@@ -222,7 +230,7 @@ function editCourse(id){
     if(ct){ try{ crono=JSON.parse(ct); }catch(e){ throw new Error('Cronograma: JSON inválido — '+e.message); } }
     const pub = val('f-publico').split(',').map(x=>x.trim()).filter(Boolean);
     const rec = {
-      title:val('f-title'), status:val('f-status'), format:val('f-format')||null,
+      title:val('f-title'), categoria:val('f-categoria')||null, status:val('f-status'), format:val('f-format')||null,
       vagas:numOrNull(val('f-vagas')), vagas_ocupadas:Number(val('f-vagasocup')||0),
       carga_horaria:val('f-carga')||null, descricao:val('f-desc')||null,
       periodo:val('f-periodo')||null, inscricoes:val('f-inscricoes')||null, link:val('f-link')||null,
