@@ -148,7 +148,7 @@ const $ = s => document.querySelector(s);
 const esc = s => (s==null?"":String(s)).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 const slug = s => (s||"").normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
 const pill = s => `<span class="pill ${s}">${({soon:'Em breve',open:'Aberto',sold:'Esgotado',done:'Realizado'})[s]||s}</span>`;
-const CATS = {certificacao_bt:'Certificação Brasil Triathlon', certificacao_wt:'Certificação World Triathlon', livre:'Curso Livre'};
+const CATS = {certificacao_bt:'🇧🇷 Certificação Nacional (Brasil Triathlon)', certificacao_wt:'🌍 Certificação Internacional (World Triathlon)', livre:'📘 Curso Livre'};
 const catLabel = c => CATS[c] || '—';
 const bool = b => b?'✅':'—';
 
