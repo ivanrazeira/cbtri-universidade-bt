@@ -244,19 +244,24 @@ function editCourse(id){
     <label>Público-alvo (separado por vírgula)</label><input id="f-publico" value="${esc((c.publico||[]).join(', '))}">
     <label>Cronograma (JSON — deixe vazio se não tiver)</label>
     <textarea id="f-crono" style="min-height:120px;font-family:monospace;font-size:12px">${esc(c.cronograma? JSON.stringify(c.cronograma,null,2):'')}</textarea>
+    <label>Facilitadores (JSON — lista de {nome, papel, foto, lattes, bio:[]})</label>
+    <textarea id="f-facilitadores" style="min-height:110px;font-family:monospace;font-size:12px" placeholder='[{"nome":"...","papel":"...","foto":"facilitadores/nome.jpg","lattes":"http...","bio":["..."]}]'>${esc(c.facilitadores? JSON.stringify(c.facilitadores,null,2):'')}</textarea>
+    <div class="muted" style="margin-top:4px">A foto é o caminho no bucket (ex.: <code>facilitadores/nome.jpg</code>). Faça upload dela no Storage → pasta <code>facilitadores</code>.</div>
     <div class="checkline"><input type="checkbox" id="f-featured" ${c.featured?'checked':''}><label style="margin:0">Destaque na home</label></div>
     <div class="checkline"><input type="checkbox" id="f-intl" ${c.intl?'checked':''}><label style="margin:0">Certificação internacional</label></div>
     <div class="checkline"><input type="checkbox" id="f-ativo" ${c.ativo?'checked':''}><label style="margin:0">Ativo (visível no site)</label></div>
   `, async ()=>{
     let crono=null; const ct=val('f-crono').trim();
     if(ct){ try{ crono=JSON.parse(ct); }catch(e){ throw new Error('Cronograma: JSON inválido — '+e.message); } }
+    let facils=null; const ft=val('f-facilitadores').trim();
+    if(ft){ try{ facils=JSON.parse(ft); }catch(e){ throw new Error('Facilitadores: JSON inválido — '+e.message); } }
     const pub = val('f-publico').split(',').map(x=>x.trim()).filter(Boolean);
     const rec = {
       title:val('f-title'), categoria:val('f-categoria')||null, status:val('f-status'), format:val('f-format')||null,
       vagas:numOrNull(val('f-vagas')), vagas_ocupadas:Number(val('f-vagasocup')||0),
       carga_horaria:val('f-carga')||null, descricao:val('f-desc')||null,
       periodo:val('f-periodo')||null, inscricoes:val('f-inscricoes')||null, link:val('f-link')||null,
-      publico: pub.length?pub:null, cronograma:crono,
+      publico: pub.length?pub:null, cronograma:crono, facilitadores:facils,
       featured:chk('f-featured'), intl:chk('f-intl'), ativo:chk('f-ativo'), ordem:Number(val('f-ordem')||0)
     };
     const q = id ? sb.from('ubt_courses').update(rec).eq('id',id) : sb.from('ubt_courses').insert(rec);

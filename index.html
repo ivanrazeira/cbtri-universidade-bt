@@ -1112,6 +1112,31 @@ function buildCronograma(cr){
   </details>`;
 }
 
+function buildFacilitadores(list){
+  if(!list || !list.length) return "";
+  const cards = list.map(f=>{
+    const foto = ubtStorageUrl(f.foto);
+    const avatar = foto
+      ? `<img src="${foto}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;object-position:top;flex-shrink:0;border:2px solid var(--gray-100)">`
+      : `<div style="width:56px;height:56px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0">${(f.nome||"?").slice(0,1)}</div>`;
+    const bio = (f.bio||[]).map(b=>`<li>${b}</li>`).join("");
+    const lattes = f.lattes ? `<a href="${f.lattes}" target="_blank" rel="noopener" style="font-size:11px;color:var(--blue);font-weight:700;text-decoration:none">Currículo Lattes ↗</a>` : "";
+    return `<div style="display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--gray-100)">
+      ${avatar}
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:var(--navy)">${f.nome||""}</div>
+        <div style="font-size:11px;color:var(--blue);margin-bottom:6px">${f.papel||""}</div>
+        <ul style="font-size:11px;color:var(--muted);margin:0 0 6px 16px;line-height:1.6">${bio}</ul>
+        ${lattes}
+      </div>
+    </div>`;
+  }).join("");
+  return `<details class="crono-details" style="margin-top:12px;border:1px solid var(--gray-200);border-radius:8px;overflow:hidden">
+    <summary style="cursor:pointer;padding:10px 12px;font-size:12px;font-weight:700;color:var(--navy);background:var(--gray-50)">👥 Facilitadores (${list.length})</summary>
+    <div style="padding:0 12px 12px">${cards}</div>
+  </details>`;
+}
+
 function buildCourseCard(c){
   const topClass = c.intl ? "card-top intl" : "card-top";
   let badge = "";
@@ -1130,6 +1155,7 @@ function buildCourseCard(c){
     ? `<a href="${c.link}" target="_blank" rel="noopener" class="${btnClass}" style="display:block;text-align:center;text-decoration:none">${btnText}</a>`
     : `<button class="${btnClass}" ${c.status!=="open"?"disabled":""}>${c.status==="open"?"Inscrever-se":btnText}</button>`;
   let cronoHtml = c.cronograma ? buildCronograma(c.cronograma) : "";
+  let facHtml = buildFacilitadores(c.facilitadores);
   return `<div class="course-card">
     <div class="${topClass}">
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${badge}</div>
@@ -1141,6 +1167,7 @@ function buildCourseCard(c){
       <p class="card-desc">${c.desc}</p>
       ${btnHtml}
       ${cronoHtml}
+      ${facHtml}
       ${(c.status==="soon"||c.status==="sold") ? `
       <div class="waitlist-wrap" id="wl-wrap-${c.id}">
         <button class="waitlist-toggle" onclick="toggleWaitlist(${c.id})">📋 Lista de espera</button>
@@ -1390,7 +1417,7 @@ function ubtMapCourse(r){ return {
   id:r.id, title:r.title, status:r.status, format:r.format,
   vagas:r.vagas, vagas_ocupadas:r.vagas_ocupadas, cargaHoraria:r.carga_horaria, desc:r.descricao,
   featured:r.featured, intl:r.intl, periodo:r.periodo, inscricoes:r.inscricoes,
-  link:r.link, cronograma:r.cronograma, publico:r.publico, categoria:r.categoria
+  link:r.link, cronograma:r.cronograma, publico:r.publico, categoria:r.categoria, facilitadores:r.facilitadores
 };}
 function ubtStorageUrl(p){
   if(!p) return null;
