@@ -4,8 +4,13 @@
 --    Confira: a URL do SQL Editor deve conter "edbyrcyvlowcylljebmq".
 --
 -- Adiciona o curso "Nível 1 Nacional — Habilitação em Para Triathlon".
--- Link de inscrição fica NULL (pendente) — atualize quando tiver a URL.
 -- ============================================================
+
+-- Se você JÁ rodou a versão anterior (sem link), NÃO rode o insert de novo
+-- (duplicaria). Nesse caso, rode apenas este UPDATE:
+-- update ubt_courses set link = 'https://www.educacaoparalimpica.org.br/course/view.php?id=702'
+--   where title = 'Nível 1 Nacional — Habilitação em Para Triathlon';
+
 
 insert into ubt_courses
   (title, categoria, status, format, vagas, carga_horaria, descricao, featured, intl, periodo, inscricoes, link, cronograma, ordem, ativo)
@@ -21,7 +26,7 @@ values (
   false,
   '23 e 24/09/2026',
   'Até 06/09/2026 · Gratuito',
-  null,
+  'https://www.educacaoparalimpica.org.br/course/view.php?id=702',
   '{
     "inscricoes": "Até 06/09/2026 — gratuito, vagas limitadas",
     "vagas": "Vagas limitadas (gratuito)",
