@@ -295,6 +295,9 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--text)
 
 /* ── FACULTY ── */
 .faculty-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:24px;margin-bottom:24px}
+.faculty-separator{grid-column:1/-1;text-align:center;padding:8px 0 0;margin-top:6px;border-top:2px solid var(--gray-100)}
+.faculty-separator .fs-title{display:block;font-size:14px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:1px}
+.faculty-separator .fs-sub{display:block;font-size:12px;color:var(--muted);margin-top:2px}
 .faculty-card{
   background:var(--white);border-radius:var(--radius-lg);
   border:1px solid var(--gray-100);box-shadow:var(--shadow);
@@ -1333,7 +1336,11 @@ function init(){
   </div>`).join("");
 
   // Faculty
-  const facultyHtml = FACULTY.map(buildFacultyCard).join("");
+  const isFacultySeparator = f => (f.name||"").trim().toLowerCase() === "facilitadores convidados";
+  const buildFacultyItem = f => isFacultySeparator(f)
+    ? `<div class="faculty-separator"><span class="fs-title">👥 ${f.name}</span>${f.role?`<span class="fs-sub">${f.role}</span>`:""}</div>`
+    : buildFacultyCard(f);
+  const facultyHtml = FACULTY.map(buildFacultyItem).join("");
   document.getElementById("faculty-preview").innerHTML = facultyHtml;
   document.getElementById("faculty-full").innerHTML = facultyHtml;
 
