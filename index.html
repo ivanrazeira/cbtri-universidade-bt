@@ -226,6 +226,8 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--text)
 .btn-card.disabled{background:var(--gray-100);color:var(--gray-400);cursor:not-allowed;opacity:.7}
 .btn-card.active{background:var(--blue);color:var(--white)}
 .btn-card.active:hover{background:var(--blue-light)}
+.btn-share-wa{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:10px;padding:7px;border-radius:8px;font-size:12px;font-weight:600;color:#128C7E;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.25);text-decoration:none;transition:background .15s}
+.btn-share-wa:hover{background:rgba(37,211,102,.18)}
 
 /* ── WAITLIST ── */
 .waitlist-wrap{margin-top:10px}
@@ -817,9 +819,14 @@ tbody td{padding:13px 16px;font-size:13px;color:var(--text)}
 <!-- ============ CURSOS LIVRES ============ -->
 <section class="page" id="pg-livres">
   <div class="sec-hdr">
-    <span class="badge-label">Em breve</span>
+    <span class="badge-label">Cursos Livres</span>
     <h2>Cursos Livres</h2>
-    <p>Trilhas de especialização para profissionais que atuam ou desejam atuar no triathlon</p>
+    <p>Formações complementares e trilhas de especialização para quem atua ou deseja atuar no triathlon</p>
+  </div>
+  <div class="cards-grid" id="livres-cards"></div>
+  <div class="sec-hdr" id="livres-trilhas-hdr" style="margin-top:8px;display:none">
+    <h2>Trilhas de especialização</h2>
+    <p>Módulos temáticos em desenvolvimento</p>
   </div>
   <div id="livres-trilhas"></div>
 </section>
@@ -1209,6 +1216,8 @@ function buildCourseCard(c){
     : `<button class="${btnClass}" ${c.status!=="open"?"disabled":""}>${c.status==="open"?"Inscrever-se":btnText}</button>`;
   let cronoHtml = c.cronograma ? buildCronograma(c.cronograma) : "";
   let facHtml = buildFacilitadores(c.facilitadores);
+  const shareMsg = encodeURIComponent(`Confira o curso "${c.title}" na Brasil Triathlon Academy 🏆 — inscrições e detalhes em https://cursos.triathlonbrasil.org.br`);
+  let shareHtml = `<a class="btn-share-wa" href="https://wa.me/?text=${shareMsg}" target="_blank" rel="noopener">📲 Compartilhar no WhatsApp</a>`;
   return `<div class="course-card">
     <div class="${topClass}">
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">${badge}</div>
@@ -1232,6 +1241,7 @@ function buildCourseCard(c){
           <div class="waitlist-success" id="wl-ok-${c.id}">✅ Inscrito! Você receberá um aviso quando abrir.</div>
         </div>
       </div>` : ""}
+      ${shareHtml}
     </div>
   </div>`;
 }
@@ -1336,6 +1346,15 @@ function init(){
   ).join("");
 
   // Free courses (trilhas)
+  // Cursos livres (categoria "livre") como cards no topo da página Cursos Livres
+  const livresCardsEl = document.getElementById("livres-cards");
+  if(livresCardsEl){
+    const livres = COURSES.filter(c=>c.categoria==="livre");
+    livresCardsEl.innerHTML = livres.map(buildCourseCard).join("");
+    const th = document.getElementById("livres-trilhas-hdr");
+    if(th) th.style.display = livres.length ? "" : "none";
+  }
+
   const livresEl = document.getElementById("livres-trilhas");
   if(livresEl) livresEl.innerHTML = FREE_TRILHAS.map(t=>`
     <div style="margin-bottom:28px">
