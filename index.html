@@ -1162,17 +1162,29 @@ function statusLabel(s){
 }
 
 function buildCronograma(cr){
-  const rows = cr.encontros.map(e=>`<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--gray-100);font-size:12px"><span style="color:var(--navy);font-weight:600;white-space:nowrap">${e.sem}</span><span style="color:var(--muted);text-align:right">${e.data}</span></div>`).join("");
-  const hor = cr.horarios.map(h=>`<li>${h}</li>`).join("");
+  const encontros = cr.encontros || [];
+  const conteudo  = cr.conteudo || [];
+  const rows = encontros.map(e=>`<div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--gray-100);font-size:12px"><span style="color:var(--navy);font-weight:600;white-space:nowrap">${e.sem}</span><span style="color:var(--muted);text-align:right">${e.data}</span></div>`).join("");
+  const conteudoHtml = conteudo.map(a=>`<div style="padding:10px 0;border-bottom:1px solid var(--gray-100)">
+      <div style="font-size:13px;font-weight:700;color:var(--navy)">${a.titulo||""}</div>
+      ${a.descricao?`<div style="font-size:12px;color:var(--gray-600);line-height:1.6;margin-top:4px">${a.descricao}</div>`:""}
+      ${a.objetivo?`<div style="font-size:12px;color:var(--blue);line-height:1.6;margin-top:6px">🎯 ${a.objetivo}</div>`:""}
+    </div>`).join("");
+  const hor = (cr.horarios||[]).map(h=>`<li>${h}</li>`).join("");
+  const horUl = hor ? `<ul style="font-size:11px;color:var(--muted);margin:0 0 12px 16px;line-height:1.6">${hor}</ul>` : "";
+  const metaHtml = (cr.inscricoes||cr.vagas) ? `<div style="font-size:12px;color:var(--gray-600);margin-bottom:10px;line-height:1.7">${cr.inscricoes?`<strong>Inscrições:</strong> ${cr.inscricoes}<br>`:""}${cr.vagas?`<strong>Vagas limitadas:</strong> ${cr.vagas}`:""}</div>` : "";
   const pres = cr.presencial ? `<div style="margin-top:12px;padding:10px 12px;background:rgba(250,204,21,.1);border:1px solid rgba(250,204,21,.3);border-radius:8px">
       <div style="font-size:11px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📍 ${cr.presencial.titulo}</div>
       ${cr.presencial.datas.map(d=>`<div style="font-size:12px;color:var(--gray-600)">• ${d}</div>`).join("")}
     </div>` : "";
+  const soConteudo = conteudo.length && !encontros.length;
+  const label = soConteudo ? `📚 Ver conteúdo programático (${conteudo.length} aula${conteudo.length>1?'s':''})` : "📅 Ver cronograma completo";
   return `<details class="crono-details" style="margin-top:12px;border:1px solid var(--gray-200);border-radius:8px;overflow:hidden">
-    <summary style="cursor:pointer;padding:10px 12px;font-size:12px;font-weight:700;color:var(--navy);background:var(--gray-50)">📅 Ver cronograma completo</summary>
+    <summary style="cursor:pointer;padding:10px 12px;font-size:12px;font-weight:700;color:var(--navy);background:var(--gray-50)">${label}</summary>
     <div style="padding:12px">
-      <div style="font-size:12px;color:var(--gray-600);margin-bottom:10px;line-height:1.7"><strong>Inscrições:</strong> ${cr.inscricoes}<br><strong>Vagas limitadas:</strong> ${cr.vagas}</div>
-      <ul style="font-size:11px;color:var(--muted);margin:0 0 12px 16px;line-height:1.6">${hor}</ul>
+      ${metaHtml}
+      ${horUl}
+      ${conteudoHtml}
       ${rows}
       ${pres}
     </div>
