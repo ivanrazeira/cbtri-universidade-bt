@@ -15,6 +15,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--white
 .wrap{max-width:500px;margin:0 auto;padding:26px 20px 40px}
 .brand{text-align:center;font-weight:800;font-size:13px;color:rgba(255,255,255,.85);margin-bottom:16px}
 .brand b{color:var(--gold)}
+.brand-logo{height:130px;width:auto;margin:0 auto;display:block}
 .hero{text-align:center}
 .hero .k{font-size:12px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,.8);text-transform:uppercase}
 .hero h1{font-size:30px;font-weight:900;line-height:1.05;margin:5px 0 4px;text-transform:uppercase}
@@ -59,7 +60,10 @@ input:focus{outline:none;border-color:var(--teal-l);box-shadow:0 0 0 3px rgba(20
 </head>
 <body>
 <div class="wrap">
-  <div class="brand"><b>Brasil</b> Triathlon Academy</div>
+  <div class="brand">
+    <img class="brand-logo" src="https://edbyrcyvlowcylljebmq.supabase.co/storage/v1/object/public/ubt/marca/logo-academy.png" alt="Brasil Triathlon Academy" onerror="this.style.display='none';document.getElementById('brand-txt').style.display='inline'">
+    <span id="brand-txt" style="display:none"><b>Brasil</b> Triathlon Academy</span>
+  </div>
 
   <div class="hero">
     <div class="k">Curso Ciência da</div>
