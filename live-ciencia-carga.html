@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live de Lançamento · Ciência da Carga Interna — Brasil Triathlon Academy</title>
+<meta name="description" content="Live gratuita: Ciência da Carga Interna — monitoramento fisiológico aplicado ao triathlon. 18/08 às 19h, com o Prof. Marcio Lazari. Cadastre-se e entre no grupo.">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--teal-d:#083f39;--teal:#0e6b60;--teal-l:#14887a;--gold:#f5b301;--gold-d:#d99a00;--white:#fff;--ink:#0b2b27;--muted:#5b7a75}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--white);
+  background:radial-gradient(120% 60% at 50% 0%,var(--teal-l) 0%,var(--teal) 40%,var(--teal-d) 100%) fixed;
+  min-height:100vh;line-height:1.5}
+.wrap{max-width:500px;margin:0 auto;padding:26px 20px 40px}
+.brand{text-align:center;font-weight:800;font-size:13px;color:rgba(255,255,255,.85);margin-bottom:16px}
+.brand b{color:var(--gold)}
+.hero{text-align:center}
+.hero .k{font-size:12px;font-weight:800;letter-spacing:2px;color:rgba(255,255,255,.8);text-transform:uppercase}
+.hero h1{font-size:30px;font-weight:900;line-height:1.05;margin:5px 0 4px;text-transform:uppercase}
+.hero h1 span{color:var(--gold)}
+.hero .sub{font-size:14px;font-weight:700;color:rgba(255,255,255,.9);text-transform:uppercase;letter-spacing:.5px}
+.pill{display:inline-block;background:linear-gradient(180deg,var(--gold),var(--gold-d));color:#3a2a00;
+  font-weight:900;letter-spacing:.5px;text-transform:uppercase;padding:8px 20px;border-radius:30px;font-size:14px;margin:14px 0 6px;box-shadow:0 6px 18px rgba(245,179,1,.35)}
+.when{display:flex;align-items:center;justify-content:center;gap:10px;font-size:21px;font-weight:900}
+.when .plus{color:var(--gold);font-size:24px}
+.hook{text-align:center;font-size:15px;color:rgba(255,255,255,.92);margin:16px 2px 4px}
+.hook b{color:var(--gold)}
+.benefits{list-style:none;margin:16px 0 4px;padding:0}
+.benefits li{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;color:rgba(255,255,255,.92);padding:6px 0}
+.benefits li::before{content:"✔";color:var(--gold);font-weight:900;flex-shrink:0}
+.author{display:flex;gap:12px;align-items:center;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:12px 14px;margin-top:16px}
+.author img{width:56px;height:56px;border-radius:50%;object-fit:cover;object-position:top;flex-shrink:0;border:2px solid rgba(255,255,255,.3)}
+.author .n{font-size:14px;font-weight:800}
+.author .r{font-size:12px;color:var(--gold);margin:1px 0 3px}
+.author .b{font-size:11.5px;color:rgba(255,255,255,.8);line-height:1.4}
+.card{background:var(--white);color:var(--ink);border-radius:16px;padding:20px;margin-top:20px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.card h2{font-size:18px;color:var(--teal-d);margin-bottom:3px}
+.card .lead{font-size:12.5px;color:var(--muted);margin-bottom:12px}
+label{display:block;font-size:12px;font-weight:700;color:var(--ink);margin:10px 0 4px}
+input{width:100%;padding:12px 14px;border:1px solid #cfe0dd;border-radius:10px;font-size:15px;font-family:inherit;color:var(--ink)}
+input:focus{outline:none;border-color:var(--teal-l);box-shadow:0 0 0 3px rgba(20,136,122,.15)}
+.btn{width:100%;margin-top:16px;padding:15px;border:none;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;
+  background:linear-gradient(180deg,var(--gold),var(--gold-d));color:#3a2a00;box-shadow:0 8px 22px rgba(245,179,1,.4)}
+.btn:hover{filter:brightness(1.05)}.btn:disabled{opacity:.6;cursor:default}
+.btn-wa{background:linear-gradient(180deg,#25D366,#128C7E);color:#fff;box-shadow:0 8px 22px rgba(37,211,102,.4);display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none}
+.msg{font-size:13px;margin-top:10px;padding:10px;border-radius:8px;text-align:center}
+.msg.err{background:#fde8e8;color:#c0392b}
+.note{font-size:11px;color:var(--muted);text-align:center;margin-top:10px}
+.success{text-align:center}.success .big{font-size:42px;margin-bottom:4px}
+.success h2{color:var(--teal-d);margin-bottom:5px}.success p{font-size:13.5px;color:var(--muted);margin-bottom:14px}
+.bonus{margin-top:16px;padding:14px 16px;border-radius:14px;background:linear-gradient(180deg,rgba(245,179,1,.18),rgba(245,179,1,.08));border:1px dashed rgba(245,179,1,.55)}
+.bonus .tag{font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.8px;color:var(--gold)}
+.bonus .txt{font-size:13.5px;color:rgba(255,255,255,.92);margin-top:3px}
+.bonus .txt b{color:var(--gold)}
+.hidden{display:none}
+.foot{text-align:center;font-size:11px;color:rgba(255,255,255,.6);margin-top:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand"><b>Brasil</b> Triathlon Academy</div>
+
+  <div class="hero">
+    <div class="k">Curso Ciência da</div>
+    <h1><span>Carga Interna</span></h1>
+    <div class="sub">Monitoramento fisiológico aplicado ao triathlon</div>
+    <div class="pill">🔴 Live de Lançamento · Grátis</div>
+    <div class="when"><span>18 AGO</span><span class="plus">✚</span><span>19H</span></div>
+  </div>
+
+  <p class="hook">Você coleta HRV, potência e TSS… mas sabe transformar isso em <b>decisão de treino</b>? Descubra na live gratuita de lançamento.</p>
+
+  <ul class="benefits">
+    <li>Carga interna vs. externa — e a lógica por trás de cada métrica</li>
+    <li>Fisiologia dos limiares: acertar as zonas antes de monitorar</li>
+    <li>TSS, CTL/ATL/TSB e ACWR: ler a carga ao longo do tempo</li>
+    <li>HRV, prontidão e fadiga: quando manter, reduzir ou aumentar</li>
+  </ul>
+
+  <div class="author">
+    <img src="https://edbyrcyvlowcylljebmq.supabase.co/storage/v1/object/public/ubt/facilitadores/marcio-lazari.jpg" alt="Marcio Lazari" onerror="this.style.display='none'">
+    <div>
+      <div class="n">Com o Prof. Marcio Lazari</div>
+      <div class="r">Ciências do Esporte / Endurance</div>
+      <div class="b">Mestre em Ciências do Esporte (FEF/Unicamp), especialista em Bioquímica do Exercício. Head de Preparação Física na Oxia. +700 treinadores atendidos em workshops.</div>
+    </div>
+  </div>
+
+  <div class="bonus">
+    <div class="tag">🎁 Bônus exclusivo ao vivo</div>
+    <div class="txt">Quem participar <b>ao vivo</b> ganha um bônus especial, revelado durante a transmissão — <b>não fica na gravação</b>.</div>
+  </div>
+
+  <div class="card" id="cadastro">
+    <div id="form-area">
+      <h2>Garanta sua vaga — é grátis</h2>
+      <div class="lead">Cadastre-se e entre no grupo de WhatsApp para receber o <b>aquecimento</b> e o <b>link da live</b>.</div>
+      <label for="nome">Nome completo</label>
+      <input type="text" id="nome" autocomplete="name" placeholder="Seu nome">
+      <label for="email">E-mail</label>
+      <input type="email" id="email" autocomplete="email" placeholder="seu@email.com">
+      <label for="tel">WhatsApp (com DDD)</label>
+      <input type="tel" id="tel" autocomplete="tel" placeholder="(11) 99999-9999">
+      <div id="msg"></div>
+      <button class="btn" id="btn" onclick="enviar()">QUERO PARTICIPAR DA LIVE →</button>
+      <div class="note">18/08 às 19h · seus dados ficam apenas com a Brasil Triathlon Academy.</div>
+    </div>
+
+    <div id="success-area" class="success hidden">
+      <div class="big">🎉</div>
+      <h2>Cadastro confirmado!</h2>
+      <p>Falta um passo: entre no grupo de WhatsApp para receber o <b>aquecimento</b> e o <b>link da live</b>.</p>
+      <a class="btn btn-wa" id="wa-btn" href="https://chat.whatsapp.com/K329rQpHGQOEqke9EXr1dj?s=cl&p=i&ilr=4" target="_blank" rel="noopener">📲 Entrar no grupo do WhatsApp</a>
+      <div class="note">18/08 às 19h · com Prof. Marcio Lazari</div>
+    </div>
+  </div>
+
+  <div class="foot">© 2026 Brasil Triathlon Academy · CBTri</div>
+</div>
+
+<script>
+const SUPA_URL = "https://edbyrcyvlowcylljebmq.supabase.co";
+const SUPA_KEY = "sb_publishable_g-Hpp9Y3nIDRgva2nkSlcw_FiQTHkfs";
+const WA_GROUP = "https://chat.whatsapp.com/K329rQpHGQOEqke9EXr1dj?s=cl&p=i&ilr=4";
+const COURSE_ID = 6;
+const COURSE_TITLE = "Ciência da Carga Interna: monitoramento fisiológico aplicado ao triathlon";
+const ORIGEM = "Live de lançamento 18/08";
+const sb = window.supabase ? window.supabase.createClient(SUPA_URL, SUPA_KEY) : null;
+
+async function enviar(){
+  const nome=document.getElementById('nome').value.trim();
+  const email=document.getElementById('email').value.trim();
+  const tel=document.getElementById('tel').value.trim();
+  const msg=document.getElementById('msg'); msg.innerHTML="";
+  if(!nome || !email || !tel){ msg.innerHTML='<div class="msg err">Preencha nome, e-mail e WhatsApp.</div>'; return; }
+  if(!/^\S+@\S+\.\S+$/.test(email)){ msg.innerHTML='<div class="msg err">E-mail inválido.</div>'; return; }
+  const btn=document.getElementById('btn'); btn.disabled=true; btn.textContent="Enviando...";
+  try{
+    if(!sb) throw new Error("sem conexão");
+    let { error } = await sb.from('ubt_waitlist').insert({
+      course_id: COURSE_ID, course_title: COURSE_TITLE, origem: ORIGEM, nome, email, telefone: tel
+    });
+    if(error && /origem/i.test(error.message||"")){
+      ({ error } = await sb.from('ubt_waitlist').insert({
+        course_id: COURSE_ID, course_title: COURSE_TITLE + " — Live 18/08", nome, email, telefone: tel
+      }));
+    }
+    if(error) throw error;
+  }catch(e){ console.warn("waitlist insert:", e); }
+  document.getElementById('form-area').classList.add('hidden');
+  document.getElementById('success-area').classList.remove('hidden');
+  document.getElementById('success-area').scrollIntoView({block:'center'});
+  try{ window.open(WA_GROUP, '_blank', 'noopener'); }catch(e){}
+}
+</script>
+</body>
+</html>

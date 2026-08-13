@@ -117,11 +117,14 @@ window.UBT_CONFIG = {
     </div>
 
     <div id="pane-waitlist" class="hidden">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
         <h3 style="margin:0">Lista de espera <span id="wl-count" class="muted"></span></h3>
-        <button class="btn btn-primary btn-sm" onclick="exportWaitlistCsv()">⬇ Exportar CSV</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <select id="wl-filtro" onchange="renderWaitlist()" style="max-width:260px"><option value="">Todos os cursos</option></select>
+          <button class="btn btn-primary btn-sm" onclick="exportWaitlistCsv()">⬇ Exportar CSV</button>
+        </div>
       </div>
-      <div class="card"><table><thead><tr><th>Data</th><th>Curso</th><th>Nome</th><th>E-mail</th><th>WhatsApp</th><th></th></tr></thead><tbody id="tb-waitlist"></tbody></table></div>
+      <div class="card"><table><thead><tr><th>Data</th><th>Curso</th><th>Origem</th><th>Nome</th><th>E-mail</th><th>WhatsApp</th><th></th></tr></thead><tbody id="tb-waitlist"></tbody></table></div>
     </div>
 
     <div id="pane-acessos" class="hidden">
@@ -370,23 +373,41 @@ async function delRow(table, id, reload){
 
 /* ================= LISTA DE ESPERA ================= */
 let WAIT=[];
+function wlFiltered(){
+  const f = ($('#wl-filtro')||{}).value || "";
+  return f ? WAIT.filter(w=>(w.course_title||"")===f) : WAIT;
+}
 async function loadWaitlist(){
   const tb = $('#tb-waitlist'); if(!tb) return;
   const { data, error } = await sb.from('ubt_waitlist').select('*').order('created_at',{ascending:false});
-  if(error){ tb.innerHTML = `<tr><td colspan="6"><div class="msg err">Não foi possível carregar: ${esc(error.message)}</div></td></tr>`; return; }
+  if(error){ tb.innerHTML = `<tr><td colspan="7"><div class="msg err">Não foi possível carregar: ${esc(error.message)}</div></td></tr>`; return; }
   WAIT = data||[];
-  const cnt = $('#wl-count'); if(cnt) cnt.textContent = WAIT.length ? '· '+WAIT.length+' inscrição(ões)' : '';
-  tb.innerHTML = WAIT.map(w=>`
+  // popula o filtro por curso
+  const sel = $('#wl-filtro');
+  if(sel){
+    const cursos = [...new Set(WAIT.map(w=>w.course_title).filter(Boolean))].sort();
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">Todos os cursos</option>' + cursos.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    sel.value = cur;
+  }
+  renderWaitlist();
+}
+function renderWaitlist(){
+  const tb = $('#tb-waitlist'); if(!tb) return;
+  const rows = wlFiltered();
+  const cnt = $('#wl-count'); if(cnt) cnt.textContent = rows.length ? '· '+rows.length+' inscrição(ões)' : '';
+  tb.innerHTML = rows.map(w=>`
     <tr><td class="muted" style="white-space:nowrap">${(w.created_at||'').slice(0,10)}</td>
-    <td>${esc(w.course_title)}</td><td><b>${esc(w.nome)}</b></td><td>${esc(w.email)}</td><td>${esc(w.telefone)||'—'}</td>
+    <td>${esc(w.course_title)}</td><td>${esc(w.origem)||'—'}</td><td><b>${esc(w.nome)}</b></td><td>${esc(w.email)}</td><td>${esc(w.telefone)||'—'}</td>
     <td class="row-actions"><button class="btn btn-sm btn-danger" onclick="delRow('ubt_waitlist',${w.id},loadWaitlist)">Remover</button></td></tr>`
-  ).join('') || '<tr><td colspan="6" class="muted">Nenhuma inscrição na lista de espera.</td></tr>';
+  ).join('') || '<tr><td colspan="7" class="muted">Nenhuma inscrição.</td></tr>';
 }
 function exportWaitlistCsv(){
-  if(!WAIT.length){ alert('Nada para exportar.'); return; }
-  const head=['Data','Curso','Nome','Email','WhatsApp'];
-  const rows=WAIT.map(w=>[(w.created_at||'').slice(0,19).replace('T',' '), w.course_title||'', w.nome||'', w.email||'', w.telefone||'']);
-  const csv=[head,...rows].map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const rows = wlFiltered();
+  if(!rows.length){ alert('Nada para exportar.'); return; }
+  const head=['Data','Curso','Origem','Nome','Email','WhatsApp'];
+  const data=rows.map(w=>[(w.created_at||'').slice(0,19).replace('T',' '), w.course_title||'', w.origem||'', w.nome||'', w.email||'', w.telefone||'']);
+  const csv=[head,...data].map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
   const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='lista-espera.csv'; a.click(); URL.revokeObjectURL(a.href);
 }
