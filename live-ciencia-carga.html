@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Live de Lançamento · Ciência da Carga Interna — Brasil Triathlon Academy</title>
-<meta name="description" content="Live gratuita: Ciência da Carga Interna — monitoramento fisiológico aplicado ao triathlon. 18/08 às 19h, com o Prof. Marcio Lazari. Cadastre-se e entre no grupo.">
+<meta name="description" content="Live gratuita: Ciência da Carga Interna — monitoramento fisiológico aplicado ao triathlon. 20/08 às 19h, com o Prof. Marcio Lazari. Cadastre-se e entre no grupo.">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--teal-d:#083f39;--teal:#0e6b60;--teal-l:#14887a;--gold:#f5b301;--gold-d:#d99a00;--white:#fff;--ink:#0b2b27;--muted:#5b7a75}
@@ -70,7 +70,7 @@ input:focus{outline:none;border-color:var(--teal-l);box-shadow:0 0 0 3px rgba(20
     <h1><span>Carga Interna</span></h1>
     <div class="sub">Monitoramento fisiológico aplicado ao triathlon</div>
     <div class="pill">🔴 Live de Lançamento · Grátis</div>
-    <div class="when"><span>18 AGO</span><span class="plus">✚</span><span>19H</span></div>
+    <div class="when"><span>20 AGO</span><span class="plus">✚</span><span>19H</span></div>
   </div>
 
   <p class="hook">Você coleta HRV, potência e TSS… mas sabe transformar isso em <b>decisão de treino</b>? Descubra na live gratuita de lançamento.</p>
@@ -108,7 +108,7 @@ input:focus{outline:none;border-color:var(--teal-l);box-shadow:0 0 0 3px rgba(20
       <input type="tel" id="tel" autocomplete="tel" placeholder="(11) 99999-9999">
       <div id="msg"></div>
       <button class="btn" id="btn" onclick="enviar()">QUERO PARTICIPAR DA LIVE →</button>
-      <div class="note">18/08 às 19h · seus dados ficam apenas com a Brasil Triathlon Academy.</div>
+      <div class="note">20/08 às 19h · seus dados ficam apenas com a Brasil Triathlon Academy.</div>
     </div>
 
     <div id="success-area" class="success hidden">
@@ -116,7 +116,7 @@ input:focus{outline:none;border-color:var(--teal-l);box-shadow:0 0 0 3px rgba(20
       <h2>Cadastro confirmado!</h2>
       <p>Falta um passo: entre no grupo de WhatsApp para receber o <b>aquecimento</b> e o <b>link da live</b>.</p>
       <a class="btn btn-wa" id="wa-btn" href="https://chat.whatsapp.com/K329rQpHGQOEqke9EXr1dj?s=cl&p=i&ilr=4" target="_blank" rel="noopener">📲 Entrar no grupo do WhatsApp</a>
-      <div class="note">18/08 às 19h · com Prof. Marcio Lazari</div>
+      <div class="note">20/08 às 19h · com Prof. Marcio Lazari</div>
     </div>
   </div>
 
@@ -129,7 +129,7 @@ const SUPA_KEY = "sb_publishable_g-Hpp9Y3nIDRgva2nkSlcw_FiQTHkfs";
 const WA_GROUP = "https://chat.whatsapp.com/K329rQpHGQOEqke9EXr1dj?s=cl&p=i&ilr=4";
 const COURSE_ID = 6;
 const COURSE_TITLE = "Ciência da Carga Interna: monitoramento fisiológico aplicado ao triathlon";
-const ORIGEM = "Live de lançamento 18/08";
+const ORIGEM = "Live de lançamento 20/08";
 const sb = window.supabase ? window.supabase.createClient(SUPA_URL, SUPA_KEY) : null;
 
 async function enviar(){
@@ -147,7 +147,7 @@ async function enviar(){
     });
     if(error && /origem/i.test(error.message||"")){
       ({ error } = await sb.from('ubt_waitlist').insert({
-        course_id: COURSE_ID, course_title: COURSE_TITLE + " — Live 18/08", nome, email, telefone: tel
+        course_id: COURSE_ID, course_title: COURSE_TITLE + " — Live 20/08", nome, email, telefone: tel
       }));
     }
     if(error) throw error;
