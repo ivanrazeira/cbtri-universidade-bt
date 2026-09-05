@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Curso Internacional de Treinador Nível 1 — World Triathlon | Brasil Triathlon</title>
+<meta name="description" content="Formação internacional de treinador de triathlon, certificada pela World Triathlon, no formato híbrido: estudo online orientado por facilitadores e três dias presenciais no Rio de Janeiro.">
+<!-- Open Graph / redes sociais -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Brasil Triathlon Academy">
+<meta property="og:title" content="Curso Internacional de Treinador Nível 1 — World Triathlon">
+<meta property="og:description" content="Formação Nível 1 da World Triathlon no Brasil, no formato híbrido: online + 3 dias presenciais no Rio de Janeiro. Turma única em 2026, 20 vagas.">
+<meta property="og:url" content="https://academy.triathlonbrasil.org.br/curso-treinador-nivel-1-world-triathlon">
+<meta property="og:locale" content="pt_BR">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Curso Internacional de Treinador Nível 1 — World Triathlon">
+<meta name="twitter:description" content="Formação Nível 1 da World Triathlon no Brasil, formato híbrido: online + 3 dias presenciais no Rio de Janeiro. Turma única em 2026, 20 vagas.">
+<!--
+  Todos os campos preenchidos. (Parcelamento omitido por opção; e-mail de
+  dúvidas: triathlonbrasil@cbtri.org.br. Barra de vagas = escassez artificial.)
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --deep:#0A2A43;      /* azul profundo — água aberta */
+    --ink:#132131;
+    --mute:#55677A;
+    --mist:#EEF3F6;      /* fundo claro frio */
+    --white:#FFFFFF;
+    --line:#CBD6DF;
+    --coral:#F0533B;     /* boia de sinalização */
+    --lime:#D7F26B;      /* colete de percurso */
+    --fill:#FFF2A8;
+    --max:1120px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{font-family:'Barlow',system-ui,sans-serif;color:var(--ink);background:var(--white);line-height:1.55;font-size:17px}
+  h1,h2,h3,.display{font-family:'Barlow Condensed','Barlow',sans-serif;line-height:1.02;letter-spacing:-.01em}
+  h1{font-weight:700;font-size:clamp(46px,8vw,104px)}
+  h2{font-weight:700;font-size:clamp(34px,4.5vw,56px);margin-bottom:22px}
+  h3{font-weight:600;font-size:clamp(22px,2.4vw,28px);margin-bottom:8px}
+  p{max-width:64ch}
+  a{color:inherit}
+  .wrap{max-width:var(--max);margin:0 auto;padding:0 24px}
+  section{padding:88px 0}
+  .fill{background:var(--fill);padding:0 4px;border-radius:2px}
+  .btn{display:inline-block;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:22px;letter-spacing:.01em;text-decoration:none;padding:16px 30px;border-radius:4px;background:var(--coral);color:var(--white);transition:transform .12s ease,background .12s ease}
+  .btn:hover{background:#D7432D}
+  .btn:active{transform:translateY(1px)}
+  .btn:focus-visible,a:focus-visible{outline:3px solid var(--lime);outline-offset:3px}
+  .btn.ghost{background:transparent;color:var(--white);border:2px solid rgba(255,255,255,.55)}
+  .btn.ghost:hover{border-color:var(--white);background:rgba(255,255,255,.06)}
+
+  /* topo */
+  header.top{background:var(--deep);color:var(--white);padding:18px 0}
+  header.top .wrap{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+  .brand{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:20px;letter-spacing:.02em}
+  .brand small{display:block;font-family:'Barlow',sans-serif;font-weight:400;font-size:13px;opacity:.75;letter-spacing:0}
+  nav a{color:var(--white);text-decoration:none;margin-left:22px;font-size:15px;opacity:.85}
+  nav a:hover{opacity:1;text-decoration:underline}
+
+  /* hero */
+  .hero{background:linear-gradient(180deg,rgba(8,42,60,.70) 0%,rgba(8,52,52,.80) 55%,rgba(8,63,57,.90) 100%),url('assets/curso-wt-nivel1-praia.jpg') center 28%/cover no-repeat,var(--deep);color:var(--white);padding:72px 0 0;position:relative;overflow:hidden}
+  .hero .wrap{position:relative;z-index:1}
+  .hero h1{max-width:12ch;margin-bottom:28px}
+  .hero .lead{font-size:clamp(19px,2vw,23px);max-width:52ch;opacity:.92;margin-bottom:36px}
+  .hero .cta{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:64px}
+  .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));border-top:1px solid rgba(255,255,255,.18)}
+  .facts div{padding:22px 20px 26px 0;border-right:1px solid rgba(255,255,255,.18);font-size:15px;opacity:.85}
+  .facts div:last-child{border-right:none}
+  .facts strong{display:block;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:26px;color:var(--lime);opacity:1;margin-bottom:2px}
+  .stripes{position:absolute;right:-6vw;top:-10vw;width:60vw;height:140%;display:flex;gap:2.5vw;transform:skewX(-14deg);opacity:.12;pointer-events:none}
+  .stripes i{flex:1;background:var(--white)}
+  .stripes i:nth-child(2){background:var(--lime)}
+  .stripes i:nth-child(3){background:var(--coral)}
+
+  /* tese */
+  .thesis{background:var(--mist)}
+  .thesis .grid{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:start}
+  .thesis .big{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:clamp(28px,3.2vw,40px);line-height:1.12;max-width:20ch}
+  .thesis p{margin-bottom:16px}
+  .compare{list-style:none;border-top:2px solid var(--deep);margin-top:6px}
+  .compare li{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:18px 0;border-bottom:1px solid var(--line)}
+  .compare li span:first-child{color:var(--mute);text-decoration:line-through;text-decoration-color:rgba(85,103,122,.5)}
+  .compare li span:last-child{font-weight:600}
+  .compare .head{border-bottom:1px solid var(--deep);font-family:'Barlow Condensed',sans-serif;font-size:19px;font-weight:600}
+  .compare .head span{text-decoration:none!important;color:var(--deep)!important;font-weight:600!important}
+
+  /* blocos (sequência real do curso) */
+  .blocks ol{list-style:none;counter-reset:b;display:grid;grid-template-columns:repeat(2,1fr);gap:0;border:1px solid var(--line)}
+  .blocks li{counter-increment:b;padding:30px 30px 34px;border-bottom:1px solid var(--line);position:relative}
+  .blocks li:nth-child(odd){border-right:1px solid var(--line)}
+  .blocks li:nth-last-child(-n+2){border-bottom:none}
+  .blocks li::before{content:"Bloco " counter(b);display:block;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;color:var(--coral);margin-bottom:10px}
+  .blocks li ul{margin:12px 0 0 18px;color:var(--mute);font-size:16px}
+  .blocks li ul li{border:none;padding:3px 0;counter-increment:none}
+  .blocks li ul li::before{content:none}
+
+  /* formato / linha do tempo */
+  .format{background:var(--deep);color:var(--white)}
+  .format p{opacity:.9}
+  .timeline{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:0;margin-top:40px;border-top:3px solid var(--lime)}
+  .timeline > div{padding:28px 28px 28px 0}
+  .timeline > div + div{border-left:1px solid rgba(255,255,255,.2);padding-left:28px}
+  .timeline .when{font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:18px;color:var(--lime);margin-bottom:6px}
+  .timeline h3{color:var(--white)}
+  .timeline ul{margin:12px 0 0 18px;font-size:16px;opacity:.88}
+
+  /* avaliação e certificação */
+  .certify .grid{display:grid;grid-template-columns:1fr 1fr;gap:56px}
+  .certify ul{margin:14px 0 0 20px}
+  .certify li{margin-bottom:8px}
+  .note{border-left:4px solid var(--coral);padding:14px 18px;background:var(--mist);margin-top:26px;font-size:16px}
+
+  /* facilitadores */
+  .team{background:var(--mist)}
+  .people{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:28px;margin-top:36px}
+  .person{border-top:3px solid var(--deep);padding-top:18px}
+  .person .role{color:var(--mute);font-size:15px;margin-bottom:10px}
+  .person p{font-size:16px}
+
+  /* para quem */
+  .who .cols{display:grid;grid-template-columns:1fr 1fr;gap:56px}
+  .who ul{margin:14px 0 0 20px}
+  .who li{margin-bottom:8px}
+
+  /* investimento */
+  .invest{background:var(--deep);color:var(--white)}
+  .invest .grid{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+  .price{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:clamp(48px,6vw,80px);line-height:1;color:var(--lime);margin:12px 0 6px}
+  .invest ul{margin:16px 0 28px 20px;opacity:.9}
+  .invest li{margin-bottom:6px}
+  .invest .fill{color:var(--ink)}
+
+  /* logo BT Academy no header */
+  .brand .ac-logo{height:46px;width:auto;display:block}
+  @media (max-width:820px){.brand .ac-logo{height:38px}}
+
+  /* barra de vagas (escassez) */
+  .vagas{margin:16px 0 4px;padding:14px 16px;border-radius:12px;background:rgba(240,83,59,.10);border:1px solid rgba(240,83,59,.35)}
+  .vagas .vhd{display:flex;justify-content:space-between;align-items:baseline;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;letter-spacing:.02em}
+  .vagas .vhd .pct{color:var(--coral);font-size:19px}
+  .vbar{height:12px;border-radius:8px;background:rgba(255,255,255,.18);overflow:hidden;margin-top:9px}
+  .vbar > i{display:block;height:100%;width:60%;border-radius:8px;background:linear-gradient(90deg,var(--coral),#ff7a63);transition:width 1s ease}
+  .vagas .vsub{font-size:12.5px;color:rgba(255,255,255,.85);margin-top:9px}
+
+  /* faq */
+  details{border-bottom:1px solid var(--line);padding:18px 0}
+  details:first-of-type{border-top:2px solid var(--deep)}
+  summary{cursor:pointer;font-family:'Barlow Condensed',sans-serif;font-weight:600;font-size:23px;list-style:none;display:flex;justify-content:space-between;gap:20px}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"+";color:var(--coral);font-weight:700;flex:none}
+  details[open] summary::after{content:"–"}
+  details p{margin-top:12px;color:var(--mute)}
+
+  footer{background:var(--ink);color:rgba(255,255,255,.75);padding:34px 0;font-size:14px}
+  footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+
+  @media (max-width:820px){
+    section{padding:64px 0}
+    .thesis .grid,.certify .grid,.who .cols,.invest .grid{grid-template-columns:1fr;gap:36px}
+    .blocks ol{grid-template-columns:1fr}
+    .blocks li:nth-child(odd){border-right:none}
+    .blocks li:nth-last-child(2){border-bottom:1px solid var(--line)}
+    .timeline{grid-template-columns:1fr}
+    .timeline > div + div{border-left:none;border-top:1px solid rgba(255,255,255,.2);padding-left:0}
+    .facts div{border-right:none;border-bottom:1px solid rgba(255,255,255,.18)}
+    .stripes{display:none}
+    nav{display:none}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <img class="ac-logo" src="assets/marca/logo-academy.png" alt="Brasil Triathlon Academy" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+      <span class="ac-txt" style="display:none">Brasil Triathlon <small>Confederação Brasileira de Triathlon · federação nacional filiada à World Triathlon</small></span>
+    </div>
+    <nav aria-label="Seções">
+      <a href="#formato">Formato</a>
+      <a href="#conteudo">Conteúdo</a>
+      <a href="#facilitadores">Facilitadores</a>
+      <a href="#investimento">Inscrição</a>
+      <a href="#faq">Dúvidas</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="stripes" aria-hidden="true"><i></i><i></i><i></i></div>
+  <div class="wrap">
+    <h1>Conduza sessões de treino no padrão da World Triathlon. E seja treinador além do treino.</h1>
+    <p class="lead">Formação Nível 1 da World Triathlon, realizada no Brasil pela Brasil Triathlon. Você desenvolve, com facilitadores de formação internacional, a habilidade de planejar e conduzir sessões de natação, ciclismo e corrida a partir de uma referência mundial. E desenvolve o que o conhecimento de treino sozinho não dá: trabalhar e desenvolver pessoas, manter o ambiente seguro, equidade e inclusão, nutrição e antidoping. Online no seu ritmo, três dias presenciais no Rio de Janeiro, certificação reconhecida em todo o sistema internacional.</p>
+    <div class="cta">
+      <a class="btn" href="#investimento">Garantir minha vaga</a>
+      <a class="btn ghost" href="#formato">Ver como funciona</a>
+    </div>
+    <div class="facts">
+      <div><strong>Híbrido</strong>online + 3 dias presenciais</div>
+      <div><strong>Rio de Janeiro</strong>27 a 29/11/2026</div>
+      <div><strong>Certificação</strong>World Triathlon Level 1, reconhecida em mais de 170 países</div>
+      <div><strong>20 vagas</strong>turma única em 2026</div>
+    </div>
+  </div>
+</section>
+
+<section class="thesis">
+  <div class="wrap">
+    <div class="grid">
+      <div>
+        <p class="big">Saber treinar e saber conduzir uma sessão são coisas diferentes. Ser treinador é uma terceira.</p>
+      </div>
+      <div>
+        <p>Boa parte da formação disponível no Brasil ensina a montar o treino: zonas, volumes, periodização. Poucas ensinam a conduzir a sessão em que esse treino acontece, e quase nenhuma trabalha o que vem antes e depois dela.</p>
+        <p>O Nível 1 da World Triathlon desenvolve duas coisas. A primeira é a habilidade de planejar e conduzir uma sessão de natação, ciclismo e corrida a partir de uma referência internacional, construída pela World Triathlon e aplicada aqui pela Brasil Triathlon: você coacha seus pares, é observado por facilitadores e recebe feedback individual até atingir o padrão.</p>
+        <p>A segunda é o papel do treinador além do treino: como se trabalha e desenvolve pessoas, como se mantém um ambiente seguro, como se pratica equidade e inclusão, o que o treinador precisa saber de nutrição e antidoping. É isso que transforma quem prescreve treino em quem forma atletas.</p>
+        <ul class="compare" aria-label="Comparação">
+          <li class="head"><span>O que o conhecimento de treino dá</span><span>O que o Nível 1 desenvolve</span></li>
+          <li><span>Prescrever volume, intensidade e periodização</span><span>Planejar e conduzir a sessão com intenção, progressão e segurança</span></li>
+          <li><span>Referência da própria experiência ou de um mentor</span><span>Referência internacional da World Triathlon, aplicada à realidade brasileira</span></li>
+          <li><span>Foco no treino</span><span>Foco no treinador: desenvolver pessoas, ambiente seguro, inclusão, nutrição, antidoping</span></li>
+          <li><span>Prática sem observação</span><span>Sessões observadas por facilitadores, com feedback individual e reflexão</span></li>
+          <li><span>Certificados de escola ou nacionais</span><span>Certificação World Triathlon Level 1, reconhecida pelas federações de mais de 170 países</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="blocks" id="conteudo">
+  <div class="wrap">
+    <h2>O que você vai estudar</h2>
+    <p style="margin-bottom:36px">O programa oficial da World Triathlon é organizado em quatro blocos sequenciais. Os dois primeiros formam o treinador; os dois últimos aplicam isso ao triathlon e avaliam o que você é capaz de conduzir.</p>
+    <ol>
+      <li>
+        <h3>Introdução</h3>
+        <p>O papel do treinador, o processo de coaching, habilidades essenciais e a preparação básica de uma sessão. Contexto do triathlon: história, entidades e organização do esporte.</p>
+      </li>
+      <li>
+        <h3>Coaching genérico</h3>
+        <p>O núcleo que diferencia este curso. Como trabalhar com pessoas e desenvolvê-las, equidade e inclusão, segurança, nutrição e antidoping. Fundamentos de ciência do esporte, terminologia, planejamento e condução de sessões.</p>
+      </li>
+      <li>
+        <h3>Coaching específico do triathlon</h3>
+        <p>Planejamento de sessões de condicionamento e as bases técnicas de cada disciplina, com drills, habilidades e progressões:</p>
+        <ul>
+          <li>Natação, incluindo águas abertas</li>
+          <li>Ciclismo, habilidades e transições</li>
+          <li>Corrida, técnica e educativos</li>
+          <li>Prática de coaching entre pares com feedback dos facilitadores</li>
+        </ul>
+      </li>
+      <li>
+        <h3>Reflexão e avaliação</h3>
+        <p>Avaliação prática de coaching, desenvolvimento do treinador, introdução ao processo de revalidação da certificação e conversa individual de desenvolvimento profissional com o facilitador.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="format" id="formato">
+  <div class="wrap">
+    <h2>Como funciona o formato híbrido</h2>
+    <p>O conteúdo teórico fica no ambiente online da World Triathlon, no seu ritmo e com acompanhamento dos facilitadores. O tempo presencial é reservado ao que não se aprende sozinho: coachar, ser coachado e receber feedback.</p>
+    <div class="timeline">
+      <div>
+        <div class="when">Fase 1 · online · 13/10 a 11/11/2026</div>
+        <h3>Estudo autodirigido com suporte</h3>
+        <p>Acesso ao World Triathlon Education &amp; Knowledge Hub com 2 a 6 semanas de antecedência. Cerca de 20 horas de leitura e questionários, feitas em blocos curtos de 20 a 30 minutos. Os facilitadores acompanham dúvidas e progresso.</p>
+        <ul>
+          <li>Questionários pré-curso obrigatórios, a concluir em até duas semanas após o acesso</li>
+          <li>Você recebe seus temas de prática (natação, ciclismo, corrida) de 2 a 4 semanas antes do presencial</li>
+        </ul>
+      </div>
+      <div>
+        <div class="when">Fase 2 · presencial · Rio de Janeiro</div>
+        <h3>Três dias de prática</h3>
+        <p>Sessões de coaching de 10 a 15 minutos conduzidas por você para os colegas, em mais de uma disciplina, com observação e feedback individual. Seminários, workshops e discussões em grupo.</p>
+        <ul>
+          <li>Local: Rio de Janeiro — local exato a definir</li>
+          <li>Piscina, ciclismo e corrida em ambiente real</li>
+        </ul>
+      </div>
+      <div>
+        <div class="when">Fase 3 · pós-curso</div>
+        <h3>Conclusão e certificação</h3>
+        <p>Até duas semanas após o presencial para entregar as tarefas restantes. Conversa individual final com o facilitador sobre seu desenvolvimento como treinador.</p>
+        <ul>
+          <li>Certificação World Triathlon Level 1</li>
+          <li>Orientação sobre revalidação e próximos níveis</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="certify">
+  <div class="wrap">
+    <div class="grid">
+      <div>
+        <h2>Avaliação por competência, não por prova</h2>
+        <p>A certificação atesta que você é capaz de conduzir uma sessão de triathlon com segurança e método. Por isso a avaliação é contínua e prática, desenhada para ser o menos estressante possível. Não se espera perfeição; espera-se evolução entre uma sessão e a seguinte e capacidade de refletir sobre o próprio trabalho.</p>
+      </div>
+      <div>
+        <h3>O que compõe a avaliação</h3>
+        <ul>
+          <li>Questionários, tarefas escritas e assignments online, no seu ritmo</li>
+          <li>Sessões práticas de coaching no presencial, observadas por um facilitador, em mais de uma disciplina</li>
+          <li>Opcionalmente, uma sessão gravada no seu ambiente de trabalho, analisada pelo facilitador</li>
+          <li>Entrega dos documentos de saúde e segurança do seu ambiente de coaching</li>
+          <li>Consulta final individual com feedback e orientação de desenvolvimento</li>
+        </ul>
+        <div class="note">Para ser certificado é preciso participar de todos os dias presenciais, concluir os questionários, tarefas e assignments e completar as práticas dentro do prazo do curso. Todo o trabalho deve ser seu: a World Triathlon não aceita cópia nem uso de ferramentas de IA nas entregas.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="team" id="facilitadores">
+  <div class="wrap">
+    <h2>Quem conduz</h2>
+    <p>Facilitadores da Brasil Triathlon com formação internacional pela World Triathlon, base acadêmica e vivência em toda a cadeia da modalidade: da iniciação e formação de atletas até o alto rendimento. O curso é interativo por desenho — o que você leva depende tanto das discussões e das práticas quanto do conteúdo.</p>
+    <div class="people">
+      <div class="person">
+        <h3>Dra. Elinai Freitas Schutz</h3>
+        <div class="role">Diretora Técnica da CBTri · World Triathlon Level 2 Coach</div>
+        <p>Doutora em Ciências do Movimento Humano e facilitadora da World Triathlon (Level 2 Coach, CAMTRI Level 3, Coach Developer COB). Diretora Técnica da CBTri, com mais de 20 anos em treinamento esportivo e formação de treinadores. Mentora do Programa MIRA/COB e integrante da Comissão de Mulheres da Americas Triathlon.</p>
+      </div>
+      <div class="person">
+        <h3>Prof. Rogério Scheibe</h3>
+        <div class="role">Facilitador CBTri e World Triathlon</div>
+        <p>Mestre em Fisiologia do Exercício (UFPR) e facilitador credenciado da World Triathlon e da CBTri. Foi Head Coach da Federação de Triathlon do Kuwait (2020–2022) e é especialista em desenvolvimento de treinadores e em análise de performance no triathlon.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="who">
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <h2>Para quem é</h2>
+        <ul>
+          <li>Treinadores de triathlon em atividade que querem conduzir sessões em um padrão internacional</li>
+          <li>Profissionais de educação física que treinam natação, ciclismo ou corrida e atendem triatletas</li>
+          <li>Donos e coordenadores de assessorias, escolinhas e projetos que precisam padronizar a condução das sessões da equipe</li>
+          <li>Ex-atletas que viraram treinadores e conhecem o treino, mas nunca foram formados para o papel de treinador</li>
+          <li>Quem quer a credencial internacional para acessar programas e os próximos níveis da World Triathlon</li>
+        </ul>
+        <p style="margin-top:18px">A certificação não exige experiência prévia, mas o curso rende mais para quem já tem atletas: as práticas e o feedback partem da sua realidade de trabalho.</p>
+      </div>
+      <div>
+        <h2>O que trazer para o presencial</h2>
+        <ul>
+          <li>Roupa de treino adequada a cada disciplina: você coacha e é coachado</li>
+          <li>Material de natação; se tiver, nadadeiras e pull buoy</li>
+          <li>Bicicleta em bom estado, com freios e marchas (MTB ou híbrida servem), capacete e tênis</li>
+          <li>Roupa para vestir sobre a roupa de banho molhada, para coachar na borda com conforto</li>
+        </ul>
+        <p style="margin-top:18px">Se trazer a bicicleta for um problema logístico, fale com a organização antes do curso. Procuraremos uma solução.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="invest" id="investimento">
+  <div class="wrap">
+    <div class="grid">
+      <div>
+        <h2>Inscrição</h2>
+        <p>Turma única no Brasil em 2026, com 20 vagas. O limite é definido pela capacidade de os facilitadores observarem e darem feedback individual a cada participante nas sessões práticas.</p>
+        <div class="vagas" id="vagas-box">
+          <div class="vhd"><span>Vagas preenchidas</span><span class="pct" id="vagas-pct">60%</span></div>
+          <div class="vbar"><i id="vagas-fill"></i></div>
+          <div class="vsub" id="vagas-sub">Turma única em 2026, com 20 vagas — a procura está alta.</div>
+        </div>
+        <div class="price">R$ 3.300,00</div>
+        <ul>
+          <li>Acesso ao World Triathlon Education &amp; Knowledge Hub</li>
+          <li>Três dias presenciais no Rio de Janeiro com uso das instalações</li>
+          <li>Feedback individual e consulta final com facilitador</li>
+          <li>Certificação World Triathlon Level 1 após aprovação</li>
+          <li>Não inclui hospedagem, alimentação e deslocamento</li>
+        </ul>
+        <a class="btn" href="https://www.ticketsports.com.br/e/CERTIFICA%C3%87%C3%83O%20INTERNACIONAL%20DE%20TREINADORES%20WORLD%20TRIATHLON%20-%20N%C3%8DVEL%201%20(H%C3%8DBRIDO)-87467" target="_blank" rel="noopener">Fazer minha inscrição</a>
+      </div>
+      <div>
+        <h3>Prazos</h3>
+        <ul>
+          <li>Inscrições até 30/09/2026 (ou enquanto durarem as vagas)</li>
+          <li>Liberação do ambiente online: 13/10 a 11/11/2026</li>
+          <li>Presencial no Rio de Janeiro: 27 a 29/11/2026</li>
+          <li>Entrega das tarefas finais: até 2 semanas após o presencial</li>
+        </ul>
+        <h3 style="margin-top:28px">Atenção ao prazo dos questionários</h3>
+        <p style="font-size:16px">Os questionários pré-curso precisam ser concluídos em até duas semanas após o acesso ao ambiente online. Sem isso, a World Triathlon pode retirar a vaga. Comece cedo e estude em blocos curtos.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>Dúvidas frequentes</h2>
+    <details>
+      <summary>Preciso ter experiência como treinador?</summary>
+      <p>Não. O curso é desenhado para quem está começando e para quem já treina há anos. As práticas partem de um drill ou tema específico que você recebe com antecedência.</p>
+    </details>
+    <details>
+      <summary>Quanto tempo de estudo online devo prever?</summary>
+      <p>Aproximadamente 20 horas de leitura e questionários no ambiente da World Triathlon. Recomendamos blocos de 20 a 30 minutos e começar assim que o acesso for liberado.</p>
+    </details>
+    <details>
+      <summary>O que acontece se eu não concluir os questionários pré-curso?</summary>
+      <p>Eles são condição para participar do presencial. O prazo é de duas semanas após o acesso ao conteúdo; sem a conclusão, a vaga pode ser retirada a critério da World Triathlon.</p>
+    </details>
+    <details>
+      <summary>A certificação vale fora do Brasil?</summary>
+      <p>Sim. É a certificação de Nível 1 emitida pela World Triathlon, entidade máxima da modalidade, que reúne federações nacionais de mais de 170 países nos cinco continentes. É a base da trilha internacional de formação de treinadores.</p>
+    </details>
+    <details>
+      <summary>Preciso levar minha própria bicicleta?</summary>
+      <p>Sim, em bom estado, com freios e marchas. MTB ou híbrida são ideais. Se for inviável, avise a organização antes do curso.</p>
+    </details>
+    <details>
+      <summary>E se eu não conseguir concluir alguma tarefa durante o curso?</summary>
+      <p>Há duas semanas após o presencial para entregar o que ficou pendente. Fale com seu facilitador o quanto antes; a maior parte dos problemas se resolve com facilidade.</p>
+    </details>
+    <details>
+      <summary>Como falo com a organização?</summary>
+      <p>Pelo e-mail <a href="mailto:triathlonbrasil@cbtri.org.br">triathlonbrasil@cbtri.org.br</a>. Para questões logísticas ou administrativas, a Brasil Triathlon é o seu primeiro ponto de contato como organizadora do curso.</p>
+    </details>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>Brasil Triathlon — Confederação Brasileira de Triathlon · cbtri.org.br</div>
+    <div>Curso realizado sob o programa de educação da World Triathlon</div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  // Barra de vagas (escassez com salvaguardas): começa em 60%, sobe devagar
+  // (por dia + leve por visita), teto 92% (nunca "esgotado"), monotônica e
+  // persistida por visitante via localStorage. Para usar contagem REAL de
+  // inscritos, troque o cálculo de "pct" por um fetch ao Supabase.
+  var START=60, CAP=92, PER_DAY=1.1, PER_VISIT=0.4;
+  var T0=Date.parse('2026-09-05T00:00:00-03:00'); // início da contagem
+  var KEY='wtn1_vagas', st;
+  try{ st=JSON.parse(localStorage.getItem(KEY)||'null'); }catch(e){ st=null; }
+  if(!st) st={visits:0};
+  st.visits=(st.visits||0)+1;
+  var days=Math.max(0,(Date.now()-T0)/86400000);
+  var pct=Math.round(START + days*PER_DAY + st.visits*PER_VISIT);
+  if(pct>CAP) pct=CAP;
+  if(st.pct && st.pct>pct) pct=st.pct; // nunca regride para o mesmo visitante
+  st.pct=pct;
+  try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(e){}
+  var f=document.getElementById('vagas-fill'),
+      p=document.getElementById('vagas-pct'),
+      s=document.getElementById('vagas-sub');
+  if(f){ f.style.width='60%'; requestAnimationFrame(function(){ f.style.width=pct+'%'; }); }
+  if(p) p.textContent=pct+'%';
+  if(s) s.textContent = pct>=85
+    ? 'Últimas vagas — turma única no Brasil em 2026.'
+    : 'Turma única no Brasil em 2026, com 20 vagas — a procura está alta.';
+})();
+</script>
+</body>
+</html>

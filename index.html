@@ -789,6 +789,9 @@ tbody td{padding:13px 16px;font-size:13px;color:var(--text)}
       </tbody>
     </table>
   </div>
+  <div style="text-align:center;margin:2px 0 10px">
+    <a href="/curso-treinador-nivel-1-world-triathlon" style="display:inline-block;padding:11px 24px;border-radius:8px;background:var(--navy);color:#fff;font-weight:700;font-size:13px;text-decoration:none">Ver detalhes do curso híbrido (presencial no Rio) →</a>
+  </div>
   <div class="sec-hdr" style="margin-top:8px">
     <h2>Benefícios da Certificação Internacional</h2>
   </div>
@@ -971,7 +974,7 @@ let COURSES = [
     }},
   {id:4, title:"World Triathlon Level 1 Híbrido", categoria:"certificacao_wt", status:"open", format:"Online + Presencial", vagas:20, cargaHoraria:null, desc:"Certificação internacional com módulo presencial intensivo. Experiência prática supervisionada por facilitadores credenciados.", featured:false, intl:true,
     periodo:"13/10 a 29/11/2026", inscricoes:"23/09 a 30/09/2026",
-    link:"https://www.ticketsports.com.br/e/CERTIFICA%C3%87%C3%83O%20INTERNACIONAL%20DE%20TREINADORES%20WORLD%20TRIATHLON%20-%20N%C3%8DVEL%201%20(H%C3%8DBRIDO)-87467",
+    link:"/curso-treinador-nivel-1-world-triathlon",
     cronograma:{
       inscricoes:"De 23/09/2026 (09h) a 30/09/2026 — ou enquanto durarem as vagas",
       vagas:"20 vagas",
@@ -1392,7 +1395,7 @@ function init(){
   // WT cards
   document.getElementById("wt-cards").innerHTML = [
     {title:"World Triathlon Level 1 Online", sub:"Certificação 100% Online", sold:true, inscricoes:"🔴 Vagas esgotadas · 20/20 preenchidas", link:"https://www.ticketsports.com.br/e/CERTIFICA%C3%87%C3%83O%20INTERNACIONAL%20DE%20TREINADORES%20WORLD%20TRIATHLON%20-%20N%C3%8DVEL%201%20(ONLINE)-87367", benefits:["Flexibilidade total de horários e local","Conteúdo baseado nas diretrizes da World Triathlon","Avaliação online com aprovação por banca credenciada","Certificado emitido pela World Triathlon","Válido em mais de 130 países"]},
-    {title:"World Triathlon Level 1 Híbrido", sub:"Online + Módulo Presencial", inscricoes:"Inscrições: 23/09 a 30/09/2026 · 20 vagas", link:"https://www.ticketsports.com.br/e/CERTIFICA%C3%87%C3%83O%20INTERNACIONAL%20DE%20TREINADORES%20WORLD%20TRIATHLON%20-%20N%C3%8DVEL%201%20(H%C3%8DBRIDO)-87467", benefits:["Formação teórica online + 3 dias de imersão presencial","Avaliação prática supervisionada por facilitadores","Maior vivência e networking com colegas","Certificado emitido pela World Triathlon","Recomendado para treinadores de atletas de competição"]},
+    {title:"World Triathlon Level 1 Híbrido", sub:"Online + Módulo Presencial", inscricoes:"Inscrições: 23/09 a 30/09/2026 · 20 vagas", link:"/curso-treinador-nivel-1-world-triathlon", cta:"Saiba Mais ↗", benefits:["Formação teórica online + 3 dias de imersão presencial","Avaliação prática supervisionada por facilitadores","Maior vivência e networking com colegas","Certificado emitido pela World Triathlon","Recomendado para treinadores de atletas de competição"]},
   ].map(w=>`<div class="wt-card">
     <div class="wt-card-top"><h3>🌍 ${w.title}</h3><p>${w.sub}</p></div>
     <div class="wt-card-body">${w.benefits.map(b=>`<div class="benefit-item"><div class="benefit-icon">✅</div>${b}</div>`).join("")}
@@ -1400,7 +1403,7 @@ function init(){
         <div style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:10px">📋 ${w.inscricoes}</div>
         ${w.sold
           ? `<button class="btn-card disabled" disabled style="width:100%">Vagas esgotadas</button>`
-          : `<a href="${w.link}" target="_blank" rel="noopener" class="btn-card active" style="display:block;text-align:center;text-decoration:none">Inscrever-se ↗</a>`}
+          : `<a href="${w.link}" target="_blank" rel="noopener" class="btn-card active" style="display:block;text-align:center;text-decoration:none">${w.cta||"Inscrever-se ↗"}</a>`}
       </div>`:""}
     </div>
   </div>`).join("");
