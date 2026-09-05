@@ -1343,8 +1343,11 @@ function init(){
       </div>
     </div>`).join("");
 
-  // Featured cards (home)
-  document.getElementById("featured-cards").innerHTML = COURSES.filter(c=>c.featured).map(buildCourseCard).join("");
+  // Featured cards (home) — cursos com inscrições ABERTAS primeiro, depois os demais em destaque
+  document.getElementById("featured-cards").innerHTML =
+    COURSES.filter(c=>c.status==="open" || c.featured)
+           .sort((a,b)=>(a.status==="open"?0:1)-(b.status==="open"?0:1))
+           .map(buildCourseCard).join("");
 
   // All cards
   document.getElementById("all-cards").innerHTML = COURSES.map(buildCourseCard).join("");
