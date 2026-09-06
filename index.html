@@ -1240,9 +1240,17 @@ function buildCourseCard(c){
   if(c.cargaHoraria) meta += `<div class="meta-item">⏱️ ${c.cargaHoraria}</div>`;
   let btnClass = c.status==="soon"?"btn-card soon":c.status==="sold"?"btn-card disabled":"btn-card active";
   let btnText = c.status==="soon"?"🔔 Em breve":c.status==="sold"?"Vagas esgotadas":"Inscrever-se ↗";
-  let btnHtml = (c.status==="open" && c.link)
-    ? `<a href="${c.link}" target="_blank" rel="noopener" class="${btnClass}" style="display:block;text-align:center;text-decoration:none">${btnText}</a>`
-    : `<button class="${btnClass}" ${c.status!=="open"?"disabled":""}>${c.status==="open"?"Inscrever-se":btnText}</button>`;
+  // WT Nível 1 Híbrido tem página de vendas própria: o card leva a ela ("Saiba mais"),
+  // e é lá que o botão de inscrição aponta para o TicketSports.
+  const wtHibrido = c.categoria==="certificacao_wt" && /h[íi]brido/i.test(c.title||"");
+  let btnHtml;
+  if(wtHibrido){
+    btnHtml = `<a href="/curso-treinador-nivel-1-world-triathlon" class="btn-card active" style="display:block;text-align:center;text-decoration:none">Saiba mais →</a>`;
+  } else if(c.status==="open" && c.link){
+    btnHtml = `<a href="${c.link}" target="_blank" rel="noopener" class="${btnClass}" style="display:block;text-align:center;text-decoration:none">${btnText}</a>`;
+  } else {
+    btnHtml = `<button class="${btnClass}" ${c.status!=="open"?"disabled":""}>${c.status==="open"?"Inscrever-se":btnText}</button>`;
+  }
   let cronoHtml = c.cronograma ? buildCronograma(c.cronograma) : "";
   let facHtml = buildFacilitadores(c.facilitadores);
   const shareMsg = encodeURIComponent(`Confira o curso "${c.title}" na Brasil Triathlon Academy 🏆 — inscrições e detalhes em https://cursos.triathlonbrasil.org.br`);
