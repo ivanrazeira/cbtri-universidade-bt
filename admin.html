@@ -483,9 +483,11 @@ async function delAcesso(user_id, email){
 
 /* ================= FLUXO FINANCEIRO (IN 001/2026 + Portaria 07/2026) ================= */
 let OFERTA_TIPOS=[], ETAPAS=[], ACOES=[];
+let axBenef=[], axLotes=[], axTipo=null;
 const brl = n => (n==null||n===''||isNaN(n)) ? '—' : 'R$ '+Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const axNum = id => { const x=parseFloat(val(id)); return isNaN(x)?0:x; };
 const sumJ = a => Array.isArray(a) ? a.reduce((s,x)=>s+(Number(x.valor)||0),0) : 0;
+const moneyBR = s => { s=String(s==null?'':s).replace(/[^\d,.-]/g,'').replace(/\./g,'').replace(',','.'); const x=parseFloat(s); return isNaN(x)?0:x; };
 const etapaNome = k => (ETAPAS.find(e=>e.etapa===k)||{}).nome || k;
 
 async function loadFluxo(){
@@ -498,54 +500,91 @@ async function loadFluxo(){
   const cnt=$('#fx-count'); if(cnt) cnt.textContent = ACOES.length? '· '+ACOES.length+' ação(ões)' : '';
   tb.innerHTML = ACOES.map(a=>{
     const tipo=OFERTA_TIPOS.find(t=>t.id===a.tipo_oferta_id);
-    const ret = a.retencao_proj_pct!=null ? Number(a.retencao_proj_pct).toFixed(1)+'%' : '—';
-    const retLow = a.retencao_proj_pct!=null && Number(a.retencao_proj_pct) < Number(a.retencao_min_pct||30);
+    const usaReal = a.retencao_apurada!=null;
+    const retV = usaReal ? a.retencao_apurada : null;
+    const retPct = a.receita_liquida_real ? (a.retencao_apurada/a.receita_liquida_real*100) : a.retencao_proj_pct;
+    const ret = retPct!=null ? Number(retPct).toFixed(1)+'%' : '—';
+    const retLow = retPct!=null && Number(retPct) < Number(a.retencao_min_pct||30);
     return `<tr>
-      <td><b>${esc(a.titulo)}</b></td>
+      <td><b>${esc(a.titulo)}</b>${a.turma_numero?` <span class="muted">· ${a.turma_numero}ª turma</span>`:''}</td>
       <td>${esc(tipo?tipo.nome:(a.tipo_oferta_id||'—'))}</td>
       <td>${esc(a.modalidade)}</td>
       <td><span class="pill">${esc(etapaNome(a.fase))}</span></td>
-      <td style="${retLow?'color:var(--red);font-weight:700':''}">${ret}${retLow?' ⚠️':''}</td>
+      <td style="${retLow?'color:var(--red);font-weight:700':''}">${ret}${usaReal?' <span class="muted">(real)</span>':''}${retLow?' ⚠️':''}</td>
       <td>${esc(a.status)}</td>
       <td class="row-actions">
         <button class="btn btn-sm" style="background:var(--gray-100)" onclick="editAcao(${a.id})">Editar</button>
+        <button class="btn btn-sm" style="background:var(--gray-100)" onclick="axDemo(${a.id})">💵 Demonstrativo</button>
+        <button class="btn btn-sm" style="background:var(--gray-100)" onclick="axPdf(${a.id})">📄 PDF</button>
         <button class="btn btn-sm btn-danger" onclick="delRow('ubt_acoes',${a.id},loadFluxo)">Excluir</button>
       </td></tr>`;
   }).join('') || '<tr><td colspan="7" class="muted">Nenhuma ação cadastrada. Clique em “+ Nova ação”.</td></tr>';
 }
 
-// pré-preenche os campos a partir do tipo de oferta (Portaria)
-function axApplyTipo(){
-  const t = OFERTA_TIPOS.find(x=>x.id===val('ax-tipo')); if(!t) return;
+/* ---- pré-preenchimento pela Portaria ---- */
+function axTipoApply(){
+  const t = OFERTA_TIPOS.find(x=>x.id===val('ax-tipo')); axTipo=t||null; if(!t){ return; }
   const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.value=(v==null?'':v); };
-  set('ax-modalidade', t.modalidade);
-  set('ax-preco', t.preco_ref);
-  set('ax-pagantes', t.minimo_pagantes);
-  set('ax-retmin', t.retencao_min_pct);
-  set('ax-carga', t.carga_horaria_ref);
+  set('ax-modalidade', t.modalidade); set('ax-retmin', t.retencao_min_pct); set('ax-carga', t.carga_horaria_ref);
   const ch=document.getElementById('ax-chancela'); if(ch) ch.checked=!!t.chancela_internacional;
   set('ax-organismo', t.organismo);
-  // beneficiários-padrão conforme a Portaria
-  let benef=[];
+  if(!axLotes.length) axLotes=[{nome:'Lote 1', valor:t.preco_ref, vagas:t.turma_prevista, ate:''}];
+  if(!val('ax-pagantes')) set('ax-pagantes', t.minimo_pagantes);
+  // partes-padrão conforme a Portaria
+  axBenef=[];
   if(t.modalidade==='A'){
-    benef.push({nome:'', funcao_portaria:'principal', categoria_vinculo:'externo', modalidade:'A', valor:t.valor_principal, forma_pagamento:'rpa'});
-    if(t.valor_colaborador!=null) benef.push({nome:'', funcao_portaria:'colaborador', categoria_vinculo:'externo', modalidade:'A', valor:t.valor_colaborador, forma_pagamento:'rpa'});
+    axBenef.push({nome:'', funcao_portaria:'principal', categoria_vinculo:'externo', valor:t.valor_principal, forma_pagamento:'rpa'});
+    if(t.valor_colaborador!=null) axBenef.push({nome:'', funcao_portaria:'colaborador', categoria_vinculo:'externo', valor:t.valor_colaborador, forma_pagamento:'rpa'});
   } else {
-    if(t.pct_facilitadores!=null) benef.push({nome:'', funcao_portaria:'principal', categoria_vinculo:'externo', modalidade:'B', percentual:t.pct_facilitadores, forma_pagamento:'rpa'});
-    if(t.pct_mediador!=null) benef.push({nome:'', funcao_portaria:'mediador', categoria_vinculo:'interno', modalidade:'B', percentual:t.pct_mediador, forma_pagamento:'rpa'});
+    if(t.pct_facilitadores!=null) axBenef.push({nome:'', funcao_portaria:'principal', categoria_vinculo:'externo', percentual:t.pct_facilitadores, forma_pagamento:'rpa'});
+    if(t.pct_mediador!=null) axBenef.push({nome:'', funcao_portaria:'mediador', categoria_vinculo:'interno', percentual:t.pct_mediador, forma_pagamento:'rpa'});
   }
-  const bt=document.getElementById('ax-benef'); if(bt) bt.value=JSON.stringify(benef,null,2);
-  axCalc();
+  axRenderLotes(); axRenderBenef(); axCalc();
 }
 
-function axParseBenef(){ try{ return JSON.parse(val('ax-benef')||'[]'); }catch(e){ return null; } }
+/* ---- lotes ---- */
+function axLoteAdd(){ axLotes.push({nome:'Lote '+(axLotes.length+1), valor:null, vagas:null, ate:''}); axRenderLotes(); axCalc(); }
+function axLoteDel(i){ axLotes.splice(i,1); axRenderLotes(); axCalc(); }
+function axLoteSet(i,f,v){ axLotes[i][f]=((f==='valor'||f==='vagas')?(v===''?null:Number(v)):v); if(f==='valor') axCalc(); }
+function axRenderLotes(){
+  const box=document.getElementById('ax-lotes'); if(!box) return;
+  box.innerHTML = axLotes.map((l,i)=>`<div style="display:grid;grid-template-columns:1.3fr .9fr .7fr 1fr auto;gap:6px;margin-bottom:6px">
+    <input value="${esc(l.nome)}" placeholder="Lote 1" onchange="axLoteSet(${i},'nome',this.value)">
+    <input type="number" step="0.01" value="${l.valor??''}" placeholder="valor R$" onchange="axLoteSet(${i},'valor',this.value)">
+    <input type="number" value="${l.vagas??''}" placeholder="vagas" onchange="axLoteSet(${i},'vagas',this.value)">
+    <input type="date" value="${esc(l.ate)}" title="vigente até" onchange="axLoteSet(${i},'ate',this.value)">
+    <button type="button" class="btn btn-sm btn-danger" onclick="axLoteDel(${i})">✕</button></div>`).join('')
+    + `<button type="button" class="btn btn-sm" style="background:var(--gray-100);margin-top:2px" onclick="axLoteAdd()">+ lote</button>
+       <span class="muted" style="margin-left:8px">Lotes são preços no tempo; o inscrito paga o vigente. A projeção usa o Lote 1.</span>`;
+}
 
-// plano econômico ao vivo
+/* ---- partes (beneficiários) ---- */
+function axBenefAdd(){ axBenef.push({nome:'', funcao_portaria:(val('ax-modalidade')==='B'?'principal':'colaborador'), categoria_vinculo:'externo', forma_pagamento:'rpa'}); axRenderBenef(); axCalc(); }
+function axBenefDel(i){ axBenef.splice(i,1); axRenderBenef(); axCalc(); }
+function axBenefSet(i,f,v){ axBenef[i][f]=((f==='valor'||f==='percentual')?(v===''?null:Number(v)):v); axCalc(); }
+function axRenderBenef(){
+  const box=document.getElementById('ax-benef'); if(!box) return;
+  const modal=val('ax-modalidade')||'A';
+  const opt=(arr,cur)=>arr.map(o=>`<option ${cur===o?'selected':''}>${o}</option>`).join('');
+  box.innerHTML = axBenef.map((b,i)=>`<div style="display:grid;grid-template-columns:1.4fr 1fr .95fr .8fr .7fr auto;gap:6px;margin-bottom:6px">
+    <input value="${esc(b.nome)}" placeholder="nome da parte" onchange="axBenefSet(${i},'nome',this.value)">
+    <select onchange="axBenefSet(${i},'funcao_portaria',this.value)">${opt(['principal','colaborador','mediador'],b.funcao_portaria)}</select>
+    <select onchange="axBenefSet(${i},'categoria_vinculo',this.value)">${opt(['externo','interno','dirigente'],b.categoria_vinculo)}</select>
+    ${modal==='A'
+      ? `<input type="number" step="0.01" value="${b.valor??''}" placeholder="R$" onchange="axBenefSet(${i},'valor',this.value)">`
+      : `<input type="number" step="0.01" value="${b.percentual??''}" placeholder="%" onchange="axBenefSet(${i},'percentual',this.value)">`}
+    <select onchange="axBenefSet(${i},'forma_pagamento',this.value)">${opt(['rpa','nf'],b.forma_pagamento)}</select>
+    <button type="button" class="btn btn-sm btn-danger" onclick="axBenefDel(${i})">✕</button></div>`).join('')
+    + `<button type="button" class="btn btn-sm" style="background:var(--gray-100);margin-top:2px" onclick="axBenefAdd()">+ parte</button>`;
+}
+function axModalidade(){ axRenderBenef(); axCalc(); }
+
+/* ---- plano econômico ao vivo ---- */
 function axCalc(){
-  const preco=axNum('ax-preco'), pagantes=axNum('ax-pagantes'), bolsas=axNum('ax-bolsas');
-  const custos=axNum('ax-custos'), retMin=axNum('ax-retmin')||30;
-  const t=OFERTA_TIPOS.find(x=>x.id===val('ax-tipo'));
-  const bolsaMeia = (t && t.bolsas_tipo==='50pct');
+  const modal=val('ax-modalidade')||'A';
+  const preco = axLotes[0] ? (Number(axLotes[0].valor)||0) : 0;
+  const pagantes=axNum('ax-pagantes'), bolsas=axNum('ax-bolsas'), custos=axNum('ax-custos'), retMin=axNum('ax-retmin')||30;
+  const bolsaMeia = axTipo && axTipo.bolsas_tipo==='50pct';
   const chancela=chk('ax-chancela'); const obrig=axNum('ax-obrig'); const provPct=axNum('ax-prov')||30;
   const chancelaCost = chancela ? obrig*(1+provPct/100) : 0;
   const tratamento = preco<=1000 ? 'repassada' : 'absorvida';
@@ -553,120 +592,228 @@ function axCalc(){
   const taxaCost = tratamento==='absorvida' ? 0.10*receitaBruta : 0;
   const deducoes = custos + taxaCost + chancelaCost;
   const receitaLiquida = receitaBruta - deducoes;
-  const benef = axParseBenef();
-  let remun=0, pctB=0, fixedA=0, benErr=(benef===null);
-  (benef||[]).forEach(b=>{
-    if(b.modalidade==='B' || b.percentual!=null){ remun += (Number(b.percentual)||0)/100*receitaLiquida; pctB += (Number(b.percentual)||0); }
-    else { remun += (Number(b.valor)||0); fixedA += (Number(b.valor)||0); }
-  });
-  const retencao = receitaLiquida - remun;
-  const retPct = receitaLiquida>0 ? retencao/receitaLiquida*100 : 0;
-  const netPer = preco*(tratamento==='absorvida'?0.9:1);
-  const fixedCost = fixedA + custos + chancelaCost;
-  const denom = netPer*(1 - pctB/100);
-  const pe = denom>0 ? Math.ceil(fixedCost/denom) : null;
-  const low = retPct < retMin;
+  let remun=0,pctB=0,fixedA=0; const partes=[];
+  axBenef.forEach(b=>{ let amt; if(modal==='B'){ amt=(Number(b.percentual)||0)/100*receitaLiquida; pctB+=(Number(b.percentual)||0);} else { amt=(Number(b.valor)||0); fixedA+=amt; } remun+=amt;
+    partes.push({nome:b.nome||('('+(b.funcao_portaria||'parte')+')'), det: modal==='B'?((Number(b.percentual)||0)+'%'):'valor fixo', amt}); });
+  const retencao=receitaLiquida-remun; const retPct=receitaLiquida>0?retencao/receitaLiquida*100:0;
+  const netPer=preco*(tratamento==='absorvida'?0.9:1); const denom=netPer*(1-pctB/100);
+  const pe = denom>0 ? Math.ceil((fixedA+custos+chancelaCost)/denom) : null;
+  const low=retPct<retMin;
   const box=document.getElementById('ax-resumo'); if(!box) return;
-  box.innerHTML = `
+  box.innerHTML=`
     <div style="display:grid;grid-template-columns:1fr auto;gap:2px 14px;font-size:13px">
-      <span>Receita bruta projetada</span><b style="text-align:right">${brl(receitaBruta)}</b>
-      <span class="muted">Taxa plataforma (10%, ${tratamento})</span><span class="muted" style="text-align:right">${taxaCost?('− '+brl(taxaCost)):'repassada ao inscrito'}</span>
+      <span>Receita bruta projetada (Lote 1 × pagantes)</span><b style="text-align:right">${brl(receitaBruta)}</b>
+      <span class="muted">Taxa plataforma 10% (${tratamento})</span><span class="muted" style="text-align:right">${taxaCost?('− '+brl(taxaCost)):'repassada ao inscrito'}</span>
       <span class="muted">Custos diretos</span><span class="muted" style="text-align:right">${custos?('− '+brl(custos)):'—'}</span>
-      ${chancela?`<span class="muted">Obrigações internacionais + provisão ${provPct}%</span><span class="muted" style="text-align:right">− ${brl(chancelaCost)}</span>`:''}
+      ${chancela?`<span class="muted">Obrigações intl. + provisão ${provPct}%</span><span class="muted" style="text-align:right">− ${brl(chancelaCost)}</span>`:''}
       <span>Receita líquida</span><b style="text-align:right">${brl(receitaLiquida)}</b>
-      <span>Remuneração docente</span><b style="text-align:right">${brl(remun)}</b>
-      <span style="font-weight:700">Retenção institucional</span><b style="text-align:right;color:${low?'var(--red)':'var(--green,#1a7a3a)'}">${brl(retencao)} · ${retPct.toFixed(1)}%</b>
-      <span class="muted">Ponto de equilíbrio (estimado)</span><span class="muted" style="text-align:right">${pe!=null?pe+' inscritos':'—'}</span>
     </div>
-    ${low?`<div class="msg err" style="margin-top:8px">⚠️ Retenção ${retPct.toFixed(1)}% abaixo do mínimo de ${retMin}% (art. 4º da Portaria). Reveja preço, percentuais ou bolsas antes de aprovar.</div>`:''}
-    ${benErr?`<div class="msg err" style="margin-top:8px">Beneficiários: JSON inválido.</div>`:''}`;
-  // guarda cálculo para salvar
-  window.__axPlano = {tratamento, receitaBruta, deducoes, receitaLiquida, remun, retPct, pe};
+    <div style="border-top:1px dashed var(--gray-200,#e3e8e8);margin:8px 0;padding-top:6px;font-size:13px">
+      <div style="font-weight:700;margin-bottom:3px">Rateio (partes)</div>
+      ${partes.map(p=>`<div style="display:grid;grid-template-columns:1fr auto auto;gap:2px 12px"><span>${esc(p.nome)}</span><span class="muted">${p.det}</span><b style="text-align:right">${brl(p.amt)}</b></div>`).join('')||'<span class="muted">Nenhuma parte.</span>'}
+      <div style="display:grid;grid-template-columns:1fr auto;gap:2px 12px;margin-top:3px"><span style="font-weight:700">CBTri (retenção institucional)</span><b style="text-align:right;color:${low?'var(--red)':'inherit'}">${brl(retencao)} · ${retPct.toFixed(1)}%</b></div>
+      <div class="muted" style="margin-top:3px">Ponto de equilíbrio estimado: ${pe!=null?pe+' inscritos':'—'}</div>
+    </div>
+    ${low?`<div class="msg err" style="margin-top:8px">⚠️ Retenção ${retPct.toFixed(1)}% abaixo do mínimo de ${retMin}% (art. 4º da Portaria). Reveja preço, percentuais ou bolsas antes de aprovar.</div>`:''}`;
+  window.__axPlano={tratamento,receitaBruta,deducoes,receitaLiquida,remun,retPct,pe,preco};
 }
 
 function editAcao(id){
   if(!OFERTA_TIPOS.length){ alert('Carregando parâmetros… tente novamente em 1s.'); loadFluxo(); return; }
   const a = ACOES.find(x=>x.id===id) || {modalidade:'A', status:'rascunho', fase:'proposicao', retencao_min_pct:30, provisao_me_pct:30, bolsas_qtd:0};
+  axTipo = OFERTA_TIPOS.find(t=>t.id===a.tipo_oferta_id) || null;
+  axLotes = Array.isArray(a.lotes)&&a.lotes.length ? JSON.parse(JSON.stringify(a.lotes)) : [];
+  axBenef = [];
   const tiposOpts = OFERTA_TIPOS.map(t=>`<option value="${t.id}" ${a.tipo_oferta_id===t.id?'selected':''}>${esc(t.nome)} (${t.modalidade})</option>`).join('');
-  const benefStr = a.id ? '' : '[]';
   openDlg(id?'Editar ação':'Nova ação (curso)', `
     <label>Tipo de oferta (Portaria)</label>
-    <select id="ax-tipo" onchange="axApplyTipo()">
-      <option value="">— selecione (pré-preenche pela Portaria) —</option>${tiposOpts}
-    </select>
+    <select id="ax-tipo" onchange="axTipoApply()"><option value="">— selecione (pré-preenche pela Portaria) —</option>${tiposOpts}</select>
     <div class="grid2">
       <div><label>Título</label><input id="ax-titulo" value="${esc(a.titulo)}"></div>
-      <div><label>Modalidade</label><input id="ax-modalidade" value="${esc(a.modalidade)}" oninput="axCalc()"></div>
+      <div><label>Turma nº</label><input id="ax-turma" type="number" value="${a.turma_numero??''}" placeholder="1 = 1ª turma"></div>
+      <div><label>Modalidade</label><select id="ax-modalidade" onchange="axModalidade()"><option value="A" ${a.modalidade==='A'?'selected':''}>A — hora-aula/oferta</option><option value="B" ${a.modalidade==='B'?'selected':''}>B — % receita líquida</option></select></div>
       <div><label>Formato</label><input id="ax-formato" value="${esc(a.formato)}" placeholder="presencial / online / híbrido"></div>
       <div><label>Carga horária</label><input id="ax-carga" value="${esc(a.carga_horaria)}"></div>
-      <div><label>Abertura das inscrições</label><input id="ax-abertura" type="date" value="${esc(a.inscricoes_abertura)}"></div>
+      <div><label>Pagantes previstos</label><input id="ax-pagantes" type="number" value="${a.pagantes_previstos??''}" oninput="axCalc()"></div>
+      <div><label>Abertura inscrições</label><input id="ax-abertura" type="date" value="${esc(a.inscricoes_abertura)}"></div>
       <div><label>Encerramento</label><input id="ax-encerr" type="date" value="${esc(a.inscricoes_encerramento)}"></div>
     </div>
-    <label>Resumo (o que é)</label><textarea id="ax-resumo-txt" style="min-height:60px">${esc(a.resumo)}</textarea>
+    <label>Resumo (o que é)</label><textarea id="ax-resumo-txt" style="min-height:56px">${esc(a.resumo)}</textarea>
 
-    <div class="blk" style="margin-top:12px;font-weight:700;color:var(--navy,#0b2b27)">Plano econômico</div>
+    <div class="blk" style="margin-top:12px;font-weight:700;color:var(--navy,#0b2b27)">Lotes de inscrição</div>
+    <div id="ax-lotes"></div>
+
+    <div class="blk" style="margin-top:12px;font-weight:700;color:var(--navy,#0b2b27)">Partes envolvidas (rateio)</div>
+    <div class="muted" style="margin-bottom:4px">Modalidade A → valor por oferta · Modalidade B → % da receita líquida. Vínculo dirigente não é remunerável (art. 7º).</div>
+    <div id="ax-benef"></div>
+
+    <div class="blk" style="margin-top:12px;font-weight:700;color:var(--navy,#0b2b27)">Custos e deduções</div>
     <div class="grid2">
-      <div><label>Preço da inscrição (R$)</label><input id="ax-preco" type="number" step="0.01" value="${a.preco_inscricao??''}" oninput="axCalc()"></div>
-      <div><label>Pagantes previstos</label><input id="ax-pagantes" type="number" value="${a.pagantes_previstos??''}" oninput="axCalc()"></div>
       <div><label>Bolsas (qtd)</label><input id="ax-bolsas" type="number" value="${a.bolsas_qtd??0}" oninput="axCalc()"></div>
       <div><label>Custos diretos (R$)</label><input id="ax-custos" type="number" step="0.01" value="${sumJ(a.custos_diretos)||''}" oninput="axCalc()"></div>
       <div><label>Retenção mínima (%)</label><input id="ax-retmin" type="number" value="${a.retencao_min_pct??30}" oninput="axCalc()"></div>
     </div>
     <div class="checkline"><input type="checkbox" id="ax-chancela" ${a.chancela_internacional?'checked':''} onchange="axCalc()"><label style="margin:0">Ação chancelada por organismo internacional</label></div>
-    <div class="grid2" id="ax-chancela-box">
+    <div class="grid2">
       <div><label>Organismo</label><input id="ax-organismo" value="${esc(a.organismo)}"></div>
       <div><label>Obrigações internacionais (R$)</label><input id="ax-obrig" type="number" step="0.01" value="${sumJ(a.obrigacoes_terceiros)||''}" oninput="axCalc()"></div>
       <div><label>Provisão moeda estrangeira (%)</label><input id="ax-prov" type="number" value="${a.provisao_me_pct??30}" oninput="axCalc()"></div>
     </div>
 
-    <label style="margin-top:10px">Beneficiários (JSON — pré-preenchido pela Portaria; edite nomes e valores)</label>
-    <textarea id="ax-benef" style="min-height:150px;font-family:monospace;font-size:12px" oninput="axCalc()" placeholder='[{"nome":"...","funcao_portaria":"principal","categoria_vinculo":"externo","modalidade":"A","valor":1700,"forma_pagamento":"rpa"}]'>${a.id?'':benefStr}</textarea>
-    <div class="muted">funcao_portaria: principal | colaborador | mediador · categoria_vinculo: externo | interno | dirigente (dirigente não é remunerável) · modalidade A→<code>valor</code>, B→<code>percentual</code> · forma_pagamento: rpa | nf</div>
-
     <div class="blk" style="margin-top:12px;font-weight:700;color:var(--navy,#0b2b27)">Rateio (ao vivo)</div>
     <div id="ax-resumo" style="background:var(--gray-50,#f6f8f8);border:1px solid var(--gray-200,#e3e8e8);border-radius:8px;padding:12px;margin-top:4px"></div>
   `, async ()=>{
-    const benef = axParseBenef();
-    if(benef===null) throw new Error('Beneficiários: JSON inválido.');
     if(!val('ax-titulo').trim()) throw new Error('Informe o título.');
-    axCalc(); const P = window.__axPlano||{};
+    axCalc(); const P=window.__axPlano||{};
+    const lotesClean = axLotes.filter(l=>l.valor!=null).map(l=>({nome:l.nome||'', valor:Number(l.valor), vagas:l.vagas!=null?Number(l.vagas):null, ate:l.ate||null}));
+    const vals = lotesClean.map(l=>l.valor);
     const rec = {
       tipo_oferta_id: val('ax-tipo')||null, titulo: val('ax-titulo').trim(), resumo: val('ax-resumo-txt')||null,
       formato: val('ax-formato')||null, modalidade: val('ax-modalidade')||'A', carga_horaria: val('ax-carga')||null,
-      chancela_internacional: chk('ax-chancela'), organismo: val('ax-organismo')||null,
-      preco_inscricao: numOrNull(val('ax-preco')), pagantes_previstos: numOrNull(val('ax-pagantes')),
-      bolsas_qtd: Number(val('ax-bolsas')||0),
+      turma_numero: numOrNull(val('ax-turma')), chancela_internacional: chk('ax-chancela'), organismo: val('ax-organismo')||null,
+      lotes: lotesClean, valor_min: vals.length?Math.min(...vals):null, valor_max: vals.length?Math.max(...vals):null,
+      preco_inscricao: P.preco||null, pagantes_previstos: numOrNull(val('ax-pagantes')), bolsas_qtd: Number(val('ax-bolsas')||0),
       custos_diretos: val('ax-custos')!=='' ? [{rubrica:'Custos diretos', valor:Number(val('ax-custos'))}] : [],
       retencao_min_pct: numOrNull(val('ax-retmin')), provisao_me_pct: numOrNull(val('ax-prov')),
       obrigacoes_terceiros: val('ax-obrig')!=='' ? [{item:'Obrigações internacionais', valor:Number(val('ax-obrig'))}] : [],
       inscricoes_abertura: val('ax-abertura')||null, inscricoes_encerramento: val('ax-encerr')||null,
-      taxa_tratamento: P.tratamento||null,
-      receita_bruta_proj: P.receitaBruta??null, deducoes_proj: P.deducoes??null, receita_liquida_proj: P.receitaLiquida??null,
-      remuneracao_docente_proj: P.remun??null, retencao_proj_pct: P.retPct??null, ponto_equilibrio: P.pe??null
+      taxa_tratamento: P.tratamento||null, receita_bruta_proj: P.receitaBruta??null, deducoes_proj: P.deducoes??null,
+      receita_liquida_proj: P.receitaLiquida??null, remuneracao_docente_proj: P.remun??null, retencao_proj_pct: P.retPct??null, ponto_equilibrio: P.pe??null
     };
     let acaoId=id;
     if(id){ const {error}=await sb.from('ubt_acoes').update(rec).eq('id',id); if(error) throw error; }
-    else {
-      const {data,error}=await sb.from('ubt_acoes').insert(rec).select('id').single(); if(error) throw error; acaoId=data.id;
-      await sb.from('ubt_acao_eventos').insert({acao_id:acaoId, etapa:'proposicao', decisao:'concluido', produto:'Plano econômico cadastrado', user_email:(await sb.auth.getUser()).data.user?.email||null});
-    }
-    // regrava beneficiários
+    else { const {data,error}=await sb.from('ubt_acoes').insert(rec).select('id').single(); if(error) throw error; acaoId=data.id;
+      await sb.from('ubt_acao_eventos').insert({acao_id:acaoId, etapa:'proposicao', decisao:'concluido', produto:'Plano econômico cadastrado', user_email:(await sb.auth.getUser()).data.user?.email||null}); }
     await sb.from('ubt_acao_beneficiarios').delete().eq('acao_id',acaoId);
-    if(benef.length){
-      const rows=benef.map(b=>({acao_id:acaoId, nome:b.nome||'(a definir)', funcao_portaria:b.funcao_portaria||null,
-        categoria_vinculo:b.categoria_vinculo||'externo', modalidade:b.modalidade||val('ax-modalidade')||'A',
-        valor:b.valor??null, percentual:b.percentual??null, forma_pagamento:b.forma_pagamento||null, atividade_desc:b.atividade_desc||null}));
-      const {error}=await sb.from('ubt_acao_beneficiarios').insert(rows); if(error) throw error;
-    }
+    if(axBenef.length){ const modal=val('ax-modalidade')||'A';
+      const rows=axBenef.map(b=>({acao_id:acaoId, nome:b.nome||'(a definir)', funcao_portaria:b.funcao_portaria||null, categoria_vinculo:b.categoria_vinculo||'externo',
+        modalidade:modal, valor:(modal==='A'?(b.valor??null):null), percentual:(modal==='B'?(b.percentual??null):null), forma_pagamento:b.forma_pagamento||null}));
+      const {error}=await sb.from('ubt_acao_beneficiarios').insert(rows); if(error) throw error; }
     dlg.close(); loadFluxo();
   });
-  // ao abrir edição, recarrega valores existentes nos campos de plano + beneficiários
-  if(id){
-    (async()=>{ const {data}=await sb.from('ubt_acao_beneficiarios').select('*').eq('acao_id',id);
-      const bt=document.getElementById('ax-benef'); if(bt) bt.value=JSON.stringify((data||[]).map(b=>({nome:b.nome,funcao_portaria:b.funcao_portaria,categoria_vinculo:b.categoria_vinculo,modalidade:b.modalidade,valor:b.valor,percentual:b.percentual,forma_pagamento:b.forma_pagamento})),null,2); axCalc(); })();
-  }
+  axRenderLotes();
+  if(id){ (async()=>{ const {data}=await sb.from('ubt_acao_beneficiarios').select('*').eq('acao_id',id);
+      axBenef=(data||[]).map(b=>({nome:b.nome,funcao_portaria:b.funcao_portaria,categoria_vinculo:b.categoria_vinculo,valor:b.valor,percentual:b.percentual,forma_pagamento:b.forma_pagamento}));
+      axRenderBenef(); axCalc(); })();
+  } else { axRenderBenef(); }
   axCalc();
 }
+
+/* ---- CSV parser (TicketSports, ;-delimitado) ---- */
+function parseCsv(text){
+  text=text.replace(/^﻿/,''); const rows=[]; let row=[],cur='',q=false;
+  for(let i=0;i<text.length;i++){ const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+    else if(c==='"') q=true; else if(c===';'){ row.push(cur); cur=''; }
+    else if(c==='\n'){ row.push(cur); rows.push(row); row=[]; cur=''; } else if(c==='\r'){} else cur+=c; }
+  if(cur.length||row.length){ row.push(cur); rows.push(row); }
+  return rows;
+}
+async function axImportCsv(id, file){
+  const rows = parseCsv(await file.text());
+  const hdr = (rows[0]||[]).map(h=>h.trim());
+  const ci = n => hdr.findIndex(h=>h.toLowerCase()===n.toLowerCase());
+  const I = {}; ['N inscricao','Nome completo','E-mail','Documento','Categoria','Lote','Forma de pagamento','Data de pagamento','Valor unitario inscricao','Valor desconto inscricao','Valor com desconto inscricao','Taxa participante inscricao','Valor de repasse inscricao','Status do pedido','Data de cancelamento'].forEach(n=>I[n]=ci(n));
+  if(I['Valor de repasse inscricao']<0) throw new Error('CSV não parece o export da TicketSports (coluna “Valor de repasse inscricao” ausente).');
+  const g=(r,n)=> I[n]>=0 ? (r[I[n]]||'') : '';
+  const insc = rows.slice(1).filter(r=>r.some(c=>c&&c.trim())).map(r=>({
+    n_inscricao:g(r,'N inscricao')||null, nome:g(r,'Nome completo')||null, email:g(r,'E-mail')||null, documento:g(r,'Documento')||null,
+    categoria:g(r,'Categoria')||null, lote:g(r,'Lote')||null, forma_pagamento:g(r,'Forma de pagamento').trim()||null, data_pagamento:g(r,'Data de pagamento')||null,
+    valor_inscricao:moneyBR(g(r,'Valor unitario inscricao')), valor_desconto:moneyBR(g(r,'Valor desconto inscricao')),
+    valor_pago:moneyBR(g(r,'Valor com desconto inscricao')), taxa:moneyBR(g(r,'Taxa participante inscricao')), valor_repasse:moneyBR(g(r,'Valor de repasse inscricao')),
+    status:g(r,'Status do pedido').trim()||null, cancelado: !!g(r,'Data de cancelamento').trim() }));
+  const pagos = insc.filter(x=>(x.status||'').toLowerCase()==='pago' && !x.cancelado);
+  const receita = pagos.reduce((s,x)=>s+x.valor_repasse,0), taxaTot=pagos.reduce((s,x)=>s+x.taxa,0), pagoTot=pagos.reduce((s,x)=>s+x.valor_pago,0);
+  const {data:acao}=await sb.from('ubt_acoes').select('*').eq('id',id).single();
+  const custos=sumJ(acao.custos_diretos); const chancelaCost=acao.chancela_internacional?sumJ(acao.obrigacoes_terceiros)*(1+(acao.provisao_me_pct||30)/100):0;
+  const receitaLiq = receita - custos - chancelaCost;
+  const {data:bens}=await sb.from('ubt_acao_beneficiarios').select('*').eq('acao_id',id);
+  let remun=0;
+  for(const b of (bens||[])){ const amt=(b.modalidade==='B'||b.percentual!=null)?(Number(b.percentual)||0)/100*receitaLiq:(Number(b.valor)||0); remun+=amt;
+    await sb.from('ubt_acao_beneficiarios').update({valor_devido:Math.round(amt*100)/100}).eq('id',b.id); }
+  const retencao=receitaLiq-remun;
+  await sb.from('ubt_acao_inscritos').delete().eq('acao_id',id);
+  if(insc.length){ const {error}=await sb.from('ubt_acao_inscritos').insert(insc.map(x=>({acao_id:id,...x}))); if(error) throw error; }
+  await sb.from('ubt_acoes').update({inscritos_pagos:pagos.length, valor_pago_total:pagoTot, taxa_plataforma_total:taxaTot,
+    receita_bruta_real:receita, receita_liquida_real:receitaLiq, retencao_apurada:retencao, apurado_em:new Date().toISOString(), inscricoes_encerradas:true}).eq('id',id);
+  await sb.from('ubt_acao_eventos').insert({acao_id:id, etapa:'apuracao', decisao:'concluido', produto:`Demonstrativo importado: receita ${brl(receita)} · retenção ${brl(retencao)}`, user_email:(await sb.auth.getUser()).data.user?.email||null});
+  return {total:insc.length, pagos:pagos.length, receita, taxaTot, pagoTot, receitaLiq, remun, retencao};
+}
+async function axDemo(id){
+  const {data:a}=await sb.from('ubt_acoes').select('*').eq('id',id).single();
+  const {data:bens}=await sb.from('ubt_acao_beneficiarios').select('*').eq('acao_id',id);
+  const apur = a.apurado_em;
+  const demo = ()=>`
+    <div style="display:grid;grid-template-columns:1fr auto;gap:2px 14px;font-size:13px">
+      <span>Inscritos pagos</span><b style="text-align:right">${a.inscritos_pagos??'—'}</b>
+      <span class="muted">Valor pago pelos inscritos</span><span class="muted" style="text-align:right">${brl(a.valor_pago_total)}</span>
+      <span class="muted">Taxa da plataforma (10%)</span><span class="muted" style="text-align:right">${brl(a.taxa_plataforma_total)}</span>
+      <span>Receita (repasse à CBTri)</span><b style="text-align:right">${brl(a.receita_bruta_real)}</b>
+      <span>Receita líquida</span><b style="text-align:right">${brl(a.receita_liquida_real)}</b>
+    </div>
+    <div style="border-top:1px dashed var(--gray-200,#e3e8e8);margin:8px 0;padding-top:6px;font-size:13px">
+      <div style="font-weight:700;margin-bottom:3px">Rateio apurado</div>
+      ${(bens||[]).map(b=>`<div style="display:grid;grid-template-columns:1fr auto auto;gap:2px 12px"><span>${esc(b.nome)} <span class="muted">(${esc(b.funcao_portaria||'')})</span></span><span class="muted">${b.modalidade==='B'?((b.percentual||0)+'%'):'fixo'}</span><b style="text-align:right">${brl(b.valor_devido)}</b></div>`).join('')||'<span class="muted">Sem partes.</span>'}
+      <div style="display:grid;grid-template-columns:1fr auto;gap:2px 12px;margin-top:3px"><span style="font-weight:700">CBTri (retenção)</span><b style="text-align:right">${brl(a.retencao_apurada)}</b></div>
+    </div>`;
+  openDlg('Demonstrativo — '+ (a.titulo||''), `
+    <label>Importar inscritos (CSV da TicketSports)</label>
+    <input type="file" id="ax-csv" accept=".csv,text/csv">
+    <div class="muted" style="margin-top:4px">Lê o export, soma o repasse (base da receita), abate as deduções e calcula o rateio por parte. Reimportar atualiza.</div>
+    <div id="ax-demo-status" style="margin-top:8px"></div>
+    <div class="blk" style="margin-top:12px;font-weight:700;color:var(--navy,#0b2b27)">Demonstrativo ${apur?`<span class="muted" style="font-weight:400">· apurado em ${(''+apur).slice(0,10)}</span>`:''}</div>
+    <div id="ax-demo-box" style="background:var(--gray-50,#f6f8f8);border:1px solid var(--gray-200,#e3e8e8);border-radius:8px;padding:12px;margin-top:4px">${apur?demo():'<span class="muted">Ainda não apurado. Importe o CSV para gerar.</span>'}</div>
+  `, async ()=>{
+    const f=document.getElementById('ax-csv').files[0];
+    if(!f) throw new Error('Selecione o arquivo CSV.');
+    $('#dlg-msg').textContent='Importando e calculando...';
+    const r=await axImportCsv(id, f);
+    document.getElementById('ax-demo-status').innerHTML=`<div class="msg ok" style="background:#e8f5ee;color:#166534;padding:8px;border-radius:6px">✓ ${r.total} inscrições lidas · ${r.pagos} pagas · receita ${brl(r.receita)} · retenção ${brl(r.retencao)}</div>`;
+    const {data:a2}=await sb.from('ubt_acoes').select('*').eq('id',id).single();
+    const {data:b2}=await sb.from('ubt_acao_beneficiarios').select('*').eq('acao_id',id);
+    Object.assign(a,a2); if(b2){bens.length=0; b2.forEach(x=>bens.push(x));}
+    document.getElementById('ax-demo-box').innerHTML=demo();
+    $('#dlg-msg').textContent='';
+    loadFluxo();
+    // não fecha o diálogo: mostra o demonstrativo recém-apurado
+  });
+}
+
+/* ---- PDF (contrato/demonstrativo) via janela de impressão ---- */
+async function axPdf(id){
+  const {data:a}=await sb.from('ubt_acoes').select('*').eq('id',id).single();
+  const {data:bens}=await sb.from('ubt_acao_beneficiarios').select('*').eq('acao_id',id);
+  const tipo=OFERTA_TIPOS.find(t=>t.id===a.tipo_oferta_id);
+  const row=(k,v)=>`<tr><td style="padding:4px 10px;color:#555">${k}</td><td style="padding:4px 10px;font-weight:600">${v}</td></tr>`;
+  const money=n=>brl(n);
+  const apur=a.apurado_em;
+  const lotes=(a.lotes||[]).map(l=>`<tr><td style="padding:3px 8px;border:1px solid #ddd">${esc(l.nome||'')}</td><td style="padding:3px 8px;border:1px solid #ddd">${money(l.valor)}</td><td style="padding:3px 8px;border:1px solid #ddd">${l.vagas??'—'}</td><td style="padding:3px 8px;border:1px solid #ddd">${l.ate?(''+l.ate).slice(0,10):'—'}</td></tr>`).join('');
+  const partes=(bens||[]).map(b=>`<tr><td style="padding:3px 8px;border:1px solid #ddd">${esc(b.nome)}</td><td style="padding:3px 8px;border:1px solid #ddd">${esc(b.funcao_portaria||'')} · ${esc(b.categoria_vinculo||'')}</td><td style="padding:3px 8px;border:1px solid #ddd">${b.modalidade==='B'?((b.percentual||0)+'% da rec. líquida'):money(b.valor)}</td><td style="padding:3px 8px;border:1px solid #ddd">${(b.forma_pagamento||'').toUpperCase()}</td><td style="padding:3px 8px;border:1px solid #ddd">${b.valor_devido!=null?money(b.valor_devido):'—'}</td></tr>`).join('');
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>Ação ${a.id} — ${esc(a.titulo||'')}</title>
+  <style>body{font-family:Arial,Helvetica,sans-serif;color:#111;max-width:760px;margin:24px auto;padding:0 20px;font-size:13px;line-height:1.5}
+  h1{font-size:20px;margin:0 0 2px} h2{font-size:14px;border-bottom:2px solid #0E6B60;color:#0E6B60;margin:20px 0 8px;padding-bottom:3px}
+  table{border-collapse:collapse;width:100%} .k td{border:none}
+  .tot{font-size:15px;font-weight:700;color:#0E6B60}
+  .foot{margin-top:26px;color:#777;font-size:11px;border-top:1px solid #ddd;padding-top:8px}</style></head><body>
+  <div style="color:#0E6B60;font-weight:700;letter-spacing:.5px;font-size:12px">BRASIL TRIATHLON ACADEMY · CBTri</div>
+  <h1>Plano econômico e rateio — ${esc(a.titulo||'')}</h1>
+  <div style="color:#666">${tipo?esc(tipo.nome):''} · Modalidade ${esc(a.modalidade||'')}${a.turma_numero?` · ${a.turma_numero}ª turma`:''}</div>
+  <h2>Oferta</h2><table class="k">
+    ${row('Formato', esc(a.formato||'—'))}${row('Carga horária', esc(a.carga_horaria||'—'))}
+    ${row('Inscrições', (a.inscricoes_abertura||'—')+' a '+(a.inscricoes_encerramento||'—'))}
+    ${row('Retenção mínima', (a.retencao_min_pct||30)+'%')}${a.chancela_internacional?row('Chancela', esc(a.organismo||'internacional')):''}
+    ${a.resumo?row('Resumo', esc(a.resumo)):''}</table>
+  <h2>Lotes de inscrição</h2><table><tr style="background:#f0f4f3"><th style="padding:4px 8px;border:1px solid #ddd;text-align:left">Lote</th><th style="padding:4px 8px;border:1px solid #ddd;text-align:left">Valor</th><th style="padding:4px 8px;border:1px solid #ddd;text-align:left">Vagas</th><th style="padding:4px 8px;border:1px solid #ddd;text-align:left">Vigente até</th></tr>${lotes||'<tr><td colspan=4 style="padding:6px">—</td></tr>'}</table>
+  <h2>Partes envolvidas e rateio</h2><table><tr style="background:#f0f4f3"><th style="padding:4px 8px;border:1px solid #ddd;text-align:left">Parte</th><th style="padding:4px 8px;border:1px solid #ddd;text-align:left">Função · vínculo</th><th style="padding:4px 8px;border:1px solid #ddd;text-align:left">Base</th><th style="padding:4px 8px;border:1px solid #ddd;text-align:left">Pagto</th><th style="padding:4px 8px;border:1px solid #ddd;text-align:left">Valor devido</th></tr>${partes||'<tr><td colspan=5 style="padding:6px">—</td></tr>'}
+    <tr><td colspan="4" style="padding:4px 8px;border:1px solid #ddd;font-weight:700">CBTri — retenção institucional</td><td style="padding:4px 8px;border:1px solid #ddd;font-weight:700">${apur?money(a.retencao_apurada):(a.retencao_proj_pct!=null?a.retencao_proj_pct.toFixed(1)+'%':'—')}</td></tr></table>
+  <h2>${apur?'Demonstrativo (apurado)':'Plano econômico (projeção)'}</h2><table class="k">
+    ${apur?`${row('Inscritos pagos', a.inscritos_pagos??'—')}${row('Valor pago pelos inscritos', money(a.valor_pago_total))}${row('Taxa da plataforma', money(a.taxa_plataforma_total))}${row('Receita (repasse à CBTri)', money(a.receita_bruta_real))}${row('Receita líquida', money(a.receita_liquida_real))}<tr><td style="padding:6px 10px" class="tot">Retenção institucional</td><td style="padding:6px 10px" class="tot">${money(a.retencao_apurada)}</td></tr>`
+      :`${row('Receita bruta projetada', money(a.receita_bruta_proj))}${row('Deduções', money(a.deducoes_proj))}${row('Receita líquida', money(a.receita_liquida_proj))}${row('Remuneração docente', money(a.remuneracao_docente_proj))}<tr><td style="padding:6px 10px" class="tot">Retenção institucional</td><td style="padding:6px 10px" class="tot">${a.retencao_proj_pct!=null?a.retencao_proj_pct.toFixed(1)+'%':'—'}</td></tr>`}</table>
+  <div class="foot">Documento gerado pela Brasil Triathlon Academy em ${new Date().toLocaleDateString('pt-BR')} · Base: Instrução Normativa nº 001/2026 e Portaria de Parâmetros nº 07/2026 · Retenção institucional mínima 30% da receita líquida.</div>
+  <script>window.onload=()=>window.print()<\/script></body></html>`;
+  const w=window.open('','_blank'); if(!w){ alert('Permita pop-ups para gerar o PDF.'); return; } w.document.write(html); w.document.close();
+}
+
 
 boot();
 </script>
