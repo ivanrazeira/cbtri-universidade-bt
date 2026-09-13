@@ -177,8 +177,9 @@ async function showApp(session){
   $('#who').textContent = session.user?.email || '';
   // checa permissão de edição. Em projeto isolado não há tabela ubt_admins
   // (todo login já é staff) => se a tabela não existir, considera admin.
-  const { data: adm, error: admErr } = await sb.from('ubt_admins').select('user_id').eq('user_id', session.user.id).maybeSingle();
+  const { data: adm, error: admErr } = await sb.from('ubt_admins').select('user_id, papeis').eq('user_id', session.user.id).maybeSingle();
   const isAdmin = !!admErr || !!adm;
+  ME = { id: session.user.id, email: session.user?.email||null, papeis: (adm&&adm.papeis)||[], semTabela: !!admErr };
   const banner = $('#not-admin');
   if(banner) banner.classList.toggle('hidden', isAdmin);
   const tabAcessos = $('#tab-acessos');
@@ -483,6 +484,7 @@ async function delAcesso(user_id, email){
 
 /* ================= FLUXO FINANCEIRO (IN 001/2026 + Portaria 07/2026) ================= */
 let OFERTA_TIPOS=[], ETAPAS=[], ACOES=[];
+let ME={id:null,email:null,papeis:[],semTabela:false};
 let axBenef=[], axLotes=[], axTipo=null;
 const brl = n => (n==null||n===''||isNaN(n)) ? '—' : 'R$ '+Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const axNum = id => { const x=parseFloat(val(id)); return isNaN(x)?0:x; };
@@ -513,6 +515,7 @@ async function loadFluxo(){
       <td style="${retLow?'color:var(--red);font-weight:700':''}">${ret}${usaReal?' <span class="muted">(real)</span>':''}${retLow?' ⚠️':''}</td>
       <td>${esc(a.status)}</td>
       <td class="row-actions">
+        <button class="btn btn-sm" style="background:var(--navy,#0b2b27);color:#fff" onclick="axFlow(${a.id})">🔀 Tramitação</button>
         <button class="btn btn-sm" style="background:var(--gray-100)" onclick="editAcao(${a.id})">Editar</button>
         <button class="btn btn-sm" style="background:var(--gray-100)" onclick="axDemo(${a.id})">💵 Demonstrativo</button>
         <button class="btn btn-sm" style="background:var(--gray-100)" onclick="axPdf(${a.id})">📄 PDF</button>
@@ -814,6 +817,115 @@ async function axPdf(id){
   const w=window.open('','_blank'); if(!w){ alert('Permita pop-ups para gerar o PDF.'); return; } w.document.write(html); w.document.close();
 }
 
+/* ================= TRAMITAÇÃO / APROVAÇÕES (IN Art. 14/15 · Portaria Art. 10) ================= */
+const PAPEL_LABEL = {coordenacao:'Coordenação', direcao_tecnica:'Direção Técnica', direcao_geral:'Direção Geral', administrativo:'Administrativo', adm_financeiro:'Adm-Financeiro', presidencia:'Presidência'};
+// etapas cujo produto é um ato de aprovação formal (registram "aprovado"); as demais "concluído"
+const ETAPA_GATE = {aprovacao_plano:1, ateste:1, autorizacao:1};
+const meHasPapel = p => ME.semTabela || (ME.papeis||[]).length===0 || (ME.papeis||[]).includes(p);
+// pré-requisito de dado por etapa (não deixa avançar sem o produto essencial)
+function etapaPronta(etapa, a){
+  if(etapa==='apuracao' && a.apurado_em==null) return 'Importe o CSV (💵 Demonstrativo) antes de apurar.';
+  if(etapa==='aprovacao_plano'){ const rp=a.retencao_proj_pct; if(rp!=null && Number(rp)<Number(a.retencao_min_pct||30)) return 'Retenção projetada abaixo do mínimo (art. 4º). Ajuste o plano antes de aprovar.'; }
+  return null;
+}
+
+async function axFlow(id){
+  const {data:a} = await sb.from('ubt_acoes').select('*').eq('id',id).single();
+  const {data:evs} = await sb.from('ubt_acao_eventos').select('*').eq('acao_id',id).order('created_at');
+  if(!ETAPAS.length){ const {data}=await sb.from('ubt_fluxo_etapas').select('*').order('ordem'); ETAPAS=data||[]; }
+  const cur = ETAPAS.find(e=>e.etapa===a.fase) || ETAPAS[0];
+  const curOrd = cur ? cur.ordem : 1;
+  const done = a.status==='concluida';
+  const canceled = a.status==='cancelada';
+  const timeline = ETAPAS.map(e=>{
+    const st = canceled ? 'cancel' : (e.ordem<curOrd||done ? 'ok' : (e.ordem===curOrd&&!done ? 'now' : 'wait'));
+    const ic = st==='ok'?'✅':st==='now'?'🟡':st==='cancel'?'⛔':'⚪';
+    const prazo = e.prazo_dias_uteis ? `${e.prazo_dias_uteis} dias úteis${e.prazo_referencia?' · '+e.prazo_referencia.replace(/_/g,' '):''}` : '—';
+    return `<div style="display:grid;grid-template-columns:24px 1fr auto;gap:8px;padding:5px 0;${st==='now'?'background:#fff8e1;border-radius:6px;padding-left:6px':''}">
+      <div style="text-align:center">${ic}</div>
+      <div><b>${e.ordem}. ${esc(e.nome)}</b><div class="muted" style="font-size:12px">Responsável: ${esc(PAPEL_LABEL[e.papel]||e.papel)} · produto: ${esc(e.produto)}</div></div>
+      <div class="muted" style="font-size:12px;text-align:right">${prazo}</div></div>`;
+  }).join('');
+  const hist = (evs||[]).map(ev=>{
+    const dl = {aprovado:'✅ aprovado',concluido:'☑️ concluído',reprovado:'↩️ devolvido',cancelado:'⛔ cancelado',observacao:'📝 observação'}[ev.decisao]||ev.decisao;
+    return `<div style="border-left:2px solid var(--gray-200,#e3e8e8);padding:3px 0 3px 10px;margin-bottom:2px;font-size:12px">
+      <b>${esc(etapaNome(ev.etapa))}</b> — ${dl} ${ev.papel?`<span class="muted">(${esc(PAPEL_LABEL[ev.papel]||ev.papel)})</span>`:''}
+      <div class="muted">${(''+ev.created_at).slice(0,16).replace('T',' ')} · ${esc(ev.user_email||'—')}${ev.produto?' · '+esc(ev.produto):''}${ev.observacao?' — '+esc(ev.observacao):''}</div></div>`;
+  }).join('') || '<span class="muted">Sem eventos ainda.</span>';
+
+  const podeAgir = !done && !canceled && cur && meHasPapel(cur.papel);
+  const bloqueio = cur ? etapaPronta(cur.etapa, a) : null;
+  const isLast = cur && cur.ordem===ETAPAS.length;
+  const proxima = cur ? ETAPAS.find(e=>e.ordem===cur.ordem+1) : null;
+  const anterior = cur ? ETAPAS.find(e=>e.ordem===cur.ordem-1) : null;
+
+  let acaoHtml='';
+  if(done) acaoHtml = `<div class="msg ok" style="background:#e8f5ee;color:#166534;padding:8px;border-radius:6px">✅ Ação concluída — pagamento executado.</div>`;
+  else if(canceled) acaoHtml = `<div class="msg err">⛔ Ação cancelada.</div>`;
+  else if(!podeAgir) acaoHtml = `<div class="msg" style="background:#fff8e1;color:#7a5c00;padding:8px;border-radius:6px">Etapa atual sob responsabilidade de <b>${esc(PAPEL_LABEL[cur.papel]||cur.papel)}</b>. Sua conta não tem esse papel — aguardando a pessoa responsável. <span class="muted">(defina papéis em ubt_admins.papeis)</span></div>`;
+  else {
+    const gate = ETAPA_GATE[cur.etapa];
+    acaoHtml = `
+      ${bloqueio?`<div class="msg err" style="margin-bottom:8px">⚠️ ${esc(bloqueio)}</div>`:''}
+      <label>Produto / referência da etapa (nota, arquivo, nº)</label>
+      <input id="fl-produto" placeholder="${esc(cur.produto)}">
+      <label>Observação (opcional)</label>
+      <textarea id="fl-obs" style="min-height:44px"></textarea>
+      ${cur.etapa==='ateste'||cur.etapa==='apuracao'||cur.etapa==='autorizacao'
+        ? `<div class="checkline"><input type="checkbox" id="fl-segreg"><label style="margin:0">Declaro que não atesto/apuro/autorizo pagamento próprio (art. 15).</label></div>`:''}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button type="button" class="btn btn-primary btn-sm" onclick="axAdvance(${id},'forward')" ${bloqueio?'disabled':''}>
+          ${gate?'✅ Aprovar':(isLast?'💸 Executar e concluir':'☑️ Concluir')} — ${esc(cur.nome)}</button>
+        ${gate?`<button type="button" class="btn btn-sm btn-danger" onclick="axAdvance(${id},'back')">↩️ Devolver</button>`:''}
+        <button type="button" class="btn btn-sm" style="background:var(--gray-100)" onclick="axAdvance(${id},'obs')">📝 Só registrar observação</button>
+      </div>`;
+  }
+
+  openDlg('Tramitação — '+(a.titulo||''), `
+    <div class="muted" style="margin-bottom:6px">Status: <b>${esc(a.status)}</b> · Fase atual: <b>${esc(cur?cur.nome:a.fase)}</b>${ME.papeis&&ME.papeis.length?` · seu(s) papel(éis): ${ME.papeis.map(p=>PAPEL_LABEL[p]||p).join(', ')}`:''}</div>
+    <div class="blk" style="font-weight:700;color:var(--navy,#0b2b27)">Fluxo (IN 001/2026 art. 14)</div>
+    <div style="border:1px solid var(--gray-200,#e3e8e8);border-radius:8px;padding:8px 10px;margin:4px 0 12px">${timeline}</div>
+    <div class="blk" style="font-weight:700;color:var(--navy,#0b2b27)">Ação nesta etapa</div>
+    <div id="fl-acao" style="margin:4px 0 12px">${acaoHtml}</div>
+    <div class="blk" style="font-weight:700;color:var(--navy,#0b2b27)">Histórico</div>
+    <div style="max-height:180px;overflow:auto;margin-top:4px">${hist}</div>
+  `, async ()=>{ dlg.close(); });
+  // esconde o botão "Salvar" padrão: nesta janela as ações são os botões inline
+  const sv=document.getElementById('dlg-save'); if(sv) sv.style.display='none';
+}
+
+async function axAdvance(id, dir){
+  const {data:a} = await sb.from('ubt_acoes').select('*').eq('id',id).single();
+  const cur = ETAPAS.find(e=>e.etapa===a.fase) || ETAPAS[0];
+  if(!cur) return;
+  if(!meHasPapel(cur.papel)){ alert('Somente '+(PAPEL_LABEL[cur.papel]||cur.papel)+' pode agir nesta etapa.'); return; }
+  const produto = val('fl-produto')||null, obs = val('fl-obs')||null;
+  const segEl = document.getElementById('fl-segreg');
+  if(segEl && !segEl.checked && dir==='forward'){ alert('Confirme a declaração de segregação de funções (art. 15).'); return; }
+  const gate = ETAPA_GATE[cur.etapa];
+  const email = ME.email || (await sb.auth.getUser()).data.user?.email || null;
+  const uid = ME.id || null;
+  const base = {acao_id:id, etapa:cur.etapa, papel:cur.papel, user_id:uid, user_email:email, produto, observacao:obs};
+
+  if(dir==='obs'){
+    await sb.from('ubt_acao_eventos').insert({...base, decisao:'observacao'});
+  } else if(dir==='back'){
+    const prev = ETAPAS.find(e=>e.ordem===cur.ordem-1);
+    await sb.from('ubt_acao_eventos').insert({...base, decisao:'reprovado'});
+    await sb.from('ubt_acoes').update({fase: prev?prev.etapa:cur.etapa, status:'em_andamento'}).eq('id',id);
+  } else { // forward
+    const bloqueio = etapaPronta(cur.etapa, a);
+    if(bloqueio){ alert(bloqueio); return; }
+    const prox = ETAPAS.find(e=>e.ordem===cur.ordem+1);
+    await sb.from('ubt_acao_eventos').insert({...base, decisao: gate?'aprovado':'concluido'});
+    const upd = {};
+    if(prox){ upd.fase = prox.etapa; upd.status = (cur.etapa==='aprovacao_plano') ? 'aprovada' : (a.status==='rascunho'?'em_andamento':a.status); }
+    else { upd.status='concluida'; }              // execucao → concluída
+    if(cur.etapa==='execucao'){ upd.repasse_confirmado=true; }
+    await sb.from('ubt_acoes').update(upd).eq('id',id);
+  }
+  dlg.close(); loadFluxo(); axFlow(id);
+}
 
 boot();
 </script>
