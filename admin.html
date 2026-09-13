@@ -35,6 +35,9 @@ label{display:block;font-size:12px;font-weight:600;color:var(--gray-600);margin:
 input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--gray-200);border-radius:8px;font-size:13px;font-family:inherit}
 textarea{resize:vertical;min-height:60px}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tbl-mini th,.tbl-mini td{padding:4px 8px;border-bottom:1px solid var(--gray-100,#eef2f2);text-align:left;white-space:nowrap}
+.tbl-mini thead th{font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:#66787a;font-weight:700}
+.tbl-mini tfoot td{border-bottom:none;padding-top:6px}
 .row-actions{display:flex;gap:6px;justify-content:flex-end}
 .hidden{display:none!important}
 #login{max-width:360px;margin:80px auto;text-align:center}
@@ -208,6 +211,7 @@ function switchTab(t){
 const dlg = $('#dlg');
 function openDlg(title, bodyHtml, onSave){
   $('#dlg-title').textContent = title; $('#dlg-body').innerHTML = bodyHtml; $('#dlg-msg').textContent='';
+  dlg.style.maxWidth='';   // largura padrão (axDemo pode alargar depois)
   const btn = $('#dlg-save'); const fresh = btn.cloneNode(true); btn.parentNode.replaceChild(fresh, btn);
   fresh.style.display=''; fresh.disabled=false;   // sempre visível por padrão (axFlow pode ocultar depois)
   fresh.addEventListener('click', async ()=>{ fresh.disabled=true; try{ await onSave(); } catch(e){ $('#dlg-msg').innerHTML=`<span style="color:var(--red)">${esc(e.message||e)}</span>`; } fresh.disabled=false; });
@@ -733,8 +737,9 @@ async function axImportCsv(id, file){
   const receitaLiq = receita - custos - chancelaCost;
   const {data:bens}=await sb.from('ubt_acao_beneficiarios').select('*').eq('acao_id',id);
   let remun=0;
-  for(const b of (bens||[])){ const amt=(b.modalidade==='B'||b.percentual!=null)?(Number(b.percentual)||0)/100*receitaLiq:(Number(b.valor)||0); remun+=amt;
-    await sb.from('ubt_acao_beneficiarios').update({valor_devido:Math.round(amt*100)/100}).eq('id',b.id); }
+  for(const b of (bens||[])){ const amt=devidoDe(b, receitaLiq); remun+=amt;
+    const {error}=await sb.from('ubt_acao_beneficiarios').update({valor_devido:Math.round(amt*100)/100}).eq('id',b.id);
+    if(error) throw new Error('Falha ao gravar o rateio da parte '+(b.nome||'')+': '+error.message); }
   const retencao=receitaLiq-remun;
   await sb.from('ubt_acao_inscritos').delete().eq('acao_id',id);
   if(insc.length){ const {error}=await sb.from('ubt_acao_inscritos').insert(insc.map(x=>({acao_id:id,...x}))); if(error) throw error; }
@@ -743,44 +748,120 @@ async function axImportCsv(id, file){
   await sb.from('ubt_acao_eventos').insert({acao_id:id, etapa:'apuracao', decisao:'concluido', produto:`Demonstrativo importado: receita ${brl(receita)} · retenção ${brl(retencao)}`, user_email:(await sb.auth.getUser()).data.user?.email||null});
   return {total:insc.length, pagos:pagos.length, receita, taxaTot, pagoTot, receitaLiq, remun, retencao};
 }
+// valor devido de uma parte a partir da receita líquida (real ou projetada)
+function devidoDe(b, receitaLiq){
+  if(receitaLiq==null) return b.valor_devido;
+  return (b.modalidade==='B'||b.percentual!=null) ? (Number(b.percentual)||0)/100*receitaLiq : (Number(b.valor)||0);
+}
+
 async function axDemo(id){
   const {data:a}=await sb.from('ubt_acoes').select('*').eq('id',id).single();
-  const {data:bens}=await sb.from('ubt_acao_beneficiarios').select('*').eq('acao_id',id);
+  let {data:bens}=await sb.from('ubt_acao_beneficiarios').select('*').eq('acao_id',id);
+  let {data:inscritos}=await sb.from('ubt_acao_inscritos').select('*').eq('acao_id',id).order('nome');
+  bens=bens||[]; inscritos=inscritos||[];
+  const liq = a.receita_liquida_real;
   const apur = a.apurado_em;
-  const demo = ()=>`
-    <div style="display:grid;grid-template-columns:1fr auto;gap:2px 14px;font-size:13px">
+  // auto-recuperação: recalcula/re-grava valor_devido se ficou nulo ou divergente (ex.: ação editada após apurar)
+  if(apur && liq!=null){
+    let mudou=false;
+    for(const b of bens){ const d=Math.round(devidoDe(b,liq)*100)/100; if(Number(b.valor_devido)!==d){ await sb.from('ubt_acao_beneficiarios').update({valor_devido:d}).eq('id',b.id); b.valor_devido=d; mudou=true; } }
+    const ret=Math.round((liq-bens.reduce((s,b)=>s+(Number(b.valor_devido)||0),0))*100)/100;
+    if(mudou && Number(a.retencao_apurada)!==ret){ await sb.from('ubt_acoes').update({retencao_apurada:ret}).eq('id',id); a.retencao_apurada=ret; }
+  }
+
+  const money = brl;
+  const render = ()=>{
+    const apur = a.apurado_em, liq = a.receita_liquida_real;
+    const totalDevido = bens.reduce((s,b)=>s+(apur?(Number(b.valor_devido)||0):0),0);
+    const saldo = liq!=null ? liq-totalDevido : a.retencao_apurada;
+    // A) resumo financeiro
+    const resumo = `
+     <div style="display:grid;grid-template-columns:1fr auto;gap:3px 14px;font-size:13px">
       <span>Inscritos pagos</span><b style="text-align:right">${a.inscritos_pagos??'—'}</b>
-      <span class="muted">Valor pago pelos inscritos</span><span class="muted" style="text-align:right">${brl(a.valor_pago_total)}</span>
-      <span class="muted">Taxa da plataforma (10%)</span><span class="muted" style="text-align:right">${brl(a.taxa_plataforma_total)}</span>
-      <span>Receita (repasse à CBTri)</span><b style="text-align:right">${brl(a.receita_bruta_real)}</b>
-      <span>Receita líquida</span><b style="text-align:right">${brl(a.receita_liquida_real)}</b>
+      <span class="muted">Valor pago pelos inscritos</span><span class="muted" style="text-align:right">${money(a.valor_pago_total)}</span>
+      <span class="muted">Taxa da plataforma (10%)</span><span class="muted" style="text-align:right">${money(a.taxa_plataforma_total)}</span>
+      <span>Receita (repasse à CBTri)</span><b style="text-align:right">${money(a.receita_bruta_real)}</b>
+      <span>Receita líquida (base do rateio)</span><b style="text-align:right">${money(liq)}</b>
+     </div>`;
+    // B) repasses por parte
+    const partesRows = bens.map(b=>{
+      const dev = apur ? (Number(b.valor_devido)||0) : null;
+      return `<tr><td>${esc(b.nome)}</td><td class="muted">${esc(b.funcao_portaria||'')} · ${esc(b.categoria_vinculo||'')}</td>
+        <td>${b.modalidade==='B'||b.percentual!=null?((b.percentual||0)+'%'):'valor fixo'}</td>
+        <td>${(b.forma_pagamento||'').toUpperCase()||'—'}</td>
+        <td style="text-align:right"><b>${dev!=null?money(dev):'—'}</b></td>
+        <td style="text-align:center">${b.pago?'✅':'⏳'}</td></tr>`;
+    }).join('') || '<tr><td colspan="6" class="muted">Nenhuma parte cadastrada.</td></tr>';
+    const repasses = `
+     <table style="width:100%;border-collapse:collapse;font-size:12.5px" class="tbl-mini">
+      <thead><tr><th>Parte</th><th>Função · vínculo</th><th>Base</th><th>Pgto</th><th style="text-align:right">Valor devido</th><th>Pago</th></tr></thead>
+      <tbody>${partesRows}</tbody>
+      <tfoot>
+       <tr style="border-top:1px solid var(--gray-200,#e3e8e8)"><td colspan="4"><b>Total repasses às partes</b></td><td style="text-align:right"><b>${money(totalDevido)}</b></td><td></td></tr>
+       <tr><td colspan="4"><b style="color:var(--navy,#0b2b27)">Saldo final — retenção institucional CBTri</b></td><td style="text-align:right"><b style="color:var(--navy,#0b2b27)">${money(saldo)}</b></td><td></td></tr>
+      </tfoot>
+     </table>`;
+    // C) lista de alunos
+    const pagCount = inscritos.filter(x=>(x.status||'').toLowerCase()==='pago'&&!x.cancelado).length;
+    const alunosRows = inscritos.map(x=>{
+      const off = x.cancelado || (x.status||'').toLowerCase()!=='pago';
+      return `<tr style="${off?'opacity:.5':''}">
+        <td>${esc(x.nome||'')}</td><td class="muted">${esc(x.documento||'')}</td><td>${esc(x.lote||'')}</td>
+        <td class="muted">${esc((x.forma_pagamento||''))}</td>
+        <td style="text-align:right">${money(x.valor_pago)}</td><td style="text-align:right" class="muted">${money(x.taxa)}</td>
+        <td style="text-align:right"><b>${money(x.valor_repasse)}</b></td>
+        <td>${esc(x.status||'')}${x.cancelado?' · cancelado':''}</td></tr>`;
+    }).join('') || '<tr><td colspan="8" class="muted">Nenhum inscrito importado ainda.</td></tr>';
+    const alunos = `
+     <div style="overflow:auto;max-height:320px;border:1px solid var(--gray-200,#e3e8e8);border-radius:8px">
+      <table style="width:100%;border-collapse:collapse;font-size:12px" class="tbl-mini">
+       <thead style="position:sticky;top:0;background:var(--gray-50,#f6f8f8)"><tr><th>Nome</th><th>Documento</th><th>Lote</th><th>Pgto</th><th style="text-align:right">Valor pago</th><th style="text-align:right">Taxa</th><th style="text-align:right">Repasse</th><th>Status</th></tr></thead>
+       <tbody>${alunosRows}</tbody>
+      </table>
+     </div>
+     <div class="muted" style="font-size:12px;margin-top:4px">${inscritos.length} inscrições · ${pagCount} pagas${inscritos.length>pagCount?' · '+(inscritos.length-pagCount)+' não pagas/canceladas (não entram no rateio)':''}</div>`;
+
+    return `
+      <div class="blk" style="font-weight:700;color:var(--navy,#0b2b27)">Resultado financeiro</div>
+      <div style="background:var(--gray-50,#f6f8f8);border:1px solid var(--gray-200,#e3e8e8);border-radius:8px;padding:12px;margin:4px 0 14px">${resumo}</div>
+      <div class="blk" style="font-weight:700;color:var(--navy,#0b2b27)">Repasses e saldo</div>
+      <div style="margin:4px 0 14px">${repasses}</div>
+      <div class="blk" style="font-weight:700;color:var(--navy,#0b2b27)">Alunos / pagamentos</div>
+      <div style="margin-top:4px">${alunos}</div>`;
+  };
+
+  openDlg('Demonstrativo financeiro — '+ (a.titulo||''), `
+    <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:6px">
+      <div style="flex:1;min-width:220px">
+        <label>Importar inscritos (CSV da TicketSports)</label>
+        <input type="file" id="ax-csv" accept=".csv,text/csv">
+      </div>
+      <button type="button" class="btn btn-primary btn-sm" id="ax-csv-btn" onclick="axDemoImport(${id})">Importar / recalcular</button>
+      ${apur?`<button type="button" class="btn btn-sm" style="background:var(--gray-100)" onclick="axPdf(${id})">📄 PDF</button>`:''}
     </div>
-    <div style="border-top:1px dashed var(--gray-200,#e3e8e8);margin:8px 0;padding-top:6px;font-size:13px">
-      <div style="font-weight:700;margin-bottom:3px">Rateio apurado</div>
-      ${(bens||[]).map(b=>`<div style="display:grid;grid-template-columns:1fr auto auto;gap:2px 12px"><span>${esc(b.nome)} <span class="muted">(${esc(b.funcao_portaria||'')})</span></span><span class="muted">${b.modalidade==='B'?((b.percentual||0)+'%'):'fixo'}</span><b style="text-align:right">${brl(b.valor_devido)}</b></div>`).join('')||'<span class="muted">Sem partes.</span>'}
-      <div style="display:grid;grid-template-columns:1fr auto;gap:2px 12px;margin-top:3px"><span style="font-weight:700">CBTri (retenção)</span><b style="text-align:right">${brl(a.retencao_apurada)}</b></div>
-    </div>`;
-  openDlg('Demonstrativo — '+ (a.titulo||''), `
-    <label>Importar inscritos (CSV da TicketSports)</label>
-    <input type="file" id="ax-csv" accept=".csv,text/csv">
-    <div class="muted" style="margin-top:4px">Lê o export, soma o repasse (base da receita), abate as deduções e calcula o rateio por parte. Reimportar atualiza.</div>
-    <div id="ax-demo-status" style="margin-top:8px"></div>
-    <div class="blk" style="margin-top:12px;font-weight:700;color:var(--navy,#0b2b27)">Demonstrativo ${apur?`<span class="muted" style="font-weight:400">· apurado em ${(''+apur).slice(0,10)}</span>`:''}</div>
-    <div id="ax-demo-box" style="background:var(--gray-50,#f6f8f8);border:1px solid var(--gray-200,#e3e8e8);border-radius:8px;padding:12px;margin-top:4px">${apur?demo():'<span class="muted">Ainda não apurado. Importe o CSV para gerar.</span>'}</div>
-  `, async ()=>{
+    <div class="muted" style="font-size:12px">Soma o repasse (base da receita), abate deduções e calcula o rateio por parte. Reimportar atualiza os alunos e recalcula tudo.</div>
+    <div id="ax-demo-status" style="margin:8px 0"></div>
+    <div class="blk" style="font-weight:700;color:var(--navy,#0b2b27)">Demonstrativo ${apur?`<span class="muted" style="font-weight:400">· apurado em ${(''+apur).slice(0,10)}</span>`:''}</div>
+    <div id="ax-demo-box" style="margin-top:6px">${apur?render():'<span class="muted">Ainda não apurado. Selecione o CSV da TicketSports e clique em “Importar / recalcular”.</span>'}</div>
+  `, async ()=>{ dlg.close(); });
+  dlg.style.maxWidth='940px';
+  const sv=document.getElementById('dlg-save'); if(sv) sv.style.display='none';   // ações são os botões inline
+  // expõe a importação para o botão inline
+  window.axDemoImport = async (aid)=>{
     const f=document.getElementById('ax-csv').files[0];
-    if(!f) throw new Error('Selecione o arquivo CSV.');
-    $('#dlg-msg').textContent='Importando e calculando...';
-    const r=await axImportCsv(id, f);
-    document.getElementById('ax-demo-status').innerHTML=`<div class="msg ok" style="background:#e8f5ee;color:#166534;padding:8px;border-radius:6px">✓ ${r.total} inscrições lidas · ${r.pagos} pagas · receita ${brl(r.receita)} · retenção ${brl(r.retencao)}</div>`;
-    const {data:a2}=await sb.from('ubt_acoes').select('*').eq('id',id).single();
-    const {data:b2}=await sb.from('ubt_acao_beneficiarios').select('*').eq('acao_id',id);
-    Object.assign(a,a2); if(b2){bens.length=0; b2.forEach(x=>bens.push(x));}
-    document.getElementById('ax-demo-box').innerHTML=demo();
-    $('#dlg-msg').textContent='';
-    loadFluxo();
-    // não fecha o diálogo: mostra o demonstrativo recém-apurado
-  });
+    if(!f){ document.getElementById('ax-demo-status').innerHTML='<div class="msg err">Selecione o arquivo CSV.</div>'; return; }
+    const st=document.getElementById('ax-demo-status'); st.innerHTML='<span class="muted">Importando e calculando…</span>';
+    try{
+      const r=await axImportCsv(aid, f);
+      const {data:a2}=await sb.from('ubt_acoes').select('*').eq('id',aid).single();
+      const {data:b2}=await sb.from('ubt_acao_beneficiarios').select('*').eq('acao_id',aid);
+      const {data:i2}=await sb.from('ubt_acao_inscritos').select('*').eq('acao_id',aid).order('nome');
+      Object.assign(a,a2); bens=b2||[]; inscritos=i2||[];
+      st.innerHTML=`<div class="msg" style="background:#e8f5ee;color:#166534;padding:8px;border-radius:6px">✓ ${r.total} inscrições · ${r.pagos} pagas · receita ${brl(r.receita)} · retenção ${brl(r.retencao)}</div>`;
+      document.getElementById('ax-demo-box').innerHTML = render();
+      loadFluxo();
+    }catch(e){ st.innerHTML=`<div class="msg err">Erro: ${esc(e.message||e)}</div>`; }
+  };
 }
 
 /* ---- PDF (contrato/demonstrativo) via janela de impressão ---- */
@@ -792,7 +873,7 @@ async function axPdf(id){
   const money=n=>brl(n);
   const apur=a.apurado_em;
   const lotes=(a.lotes||[]).map(l=>`<tr><td style="padding:3px 8px;border:1px solid #ddd">${esc(l.nome||'')}</td><td style="padding:3px 8px;border:1px solid #ddd">${money(l.valor)}</td><td style="padding:3px 8px;border:1px solid #ddd">${l.vagas??'—'}</td><td style="padding:3px 8px;border:1px solid #ddd">${l.ate?(''+l.ate).slice(0,10):'—'}</td></tr>`).join('');
-  const partes=(bens||[]).map(b=>`<tr><td style="padding:3px 8px;border:1px solid #ddd">${esc(b.nome)}</td><td style="padding:3px 8px;border:1px solid #ddd">${esc(b.funcao_portaria||'')} · ${esc(b.categoria_vinculo||'')}</td><td style="padding:3px 8px;border:1px solid #ddd">${b.modalidade==='B'?((b.percentual||0)+'% da rec. líquida'):money(b.valor)}</td><td style="padding:3px 8px;border:1px solid #ddd">${(b.forma_pagamento||'').toUpperCase()}</td><td style="padding:3px 8px;border:1px solid #ddd">${b.valor_devido!=null?money(b.valor_devido):'—'}</td></tr>`).join('');
+  const partes=(bens||[]).map(b=>{const dev=apur?devidoDe(b, a.receita_liquida_real):null; return `<tr><td style="padding:3px 8px;border:1px solid #ddd">${esc(b.nome)}</td><td style="padding:3px 8px;border:1px solid #ddd">${esc(b.funcao_portaria||'')} · ${esc(b.categoria_vinculo||'')}</td><td style="padding:3px 8px;border:1px solid #ddd">${b.modalidade==='B'||b.percentual!=null?((b.percentual||0)+'% da rec. líquida'):money(b.valor)}</td><td style="padding:3px 8px;border:1px solid #ddd">${(b.forma_pagamento||'').toUpperCase()}</td><td style="padding:3px 8px;border:1px solid #ddd">${dev!=null?money(dev):'—'}</td></tr>`;}).join('');
   const html=`<!doctype html><html><head><meta charset="utf-8"><title>Ação ${a.id} — ${esc(a.titulo||'')}</title>
   <style>body{font-family:Arial,Helvetica,sans-serif;color:#111;max-width:760px;margin:24px auto;padding:0 20px;font-size:13px;line-height:1.5}
   h1{font-size:20px;margin:0 0 2px} h2{font-size:14px;border-bottom:2px solid #0E6B60;color:#0E6B60;margin:20px 0 8px;padding-bottom:3px}
