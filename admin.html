@@ -209,6 +209,7 @@ const dlg = $('#dlg');
 function openDlg(title, bodyHtml, onSave){
   $('#dlg-title').textContent = title; $('#dlg-body').innerHTML = bodyHtml; $('#dlg-msg').textContent='';
   const btn = $('#dlg-save'); const fresh = btn.cloneNode(true); btn.parentNode.replaceChild(fresh, btn);
+  fresh.style.display=''; fresh.disabled=false;   // sempre visível por padrão (axFlow pode ocultar depois)
   fresh.addEventListener('click', async ()=>{ fresh.disabled=true; try{ await onSave(); } catch(e){ $('#dlg-msg').innerHTML=`<span style="color:var(--red)">${esc(e.message||e)}</span>`; } fresh.disabled=false; });
   dlg.showModal();
 }
