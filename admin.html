@@ -145,7 +145,7 @@ window.UBT_CONFIG = {
         <h3 style="margin:0">Acessos ao painel</h3><button class="btn btn-primary btn-sm" onclick="editAcesso()">+ Novo acesso</button>
       </div>
       <div class="muted" style="margin-bottom:10px">Contas com permissão de administrar a Brasil Triathlon Academy. Criar aqui gera o login e libera o acesso automaticamente.</div>
-      <div class="card"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Criado</th><th></th></tr></thead><tbody id="tb-acessos"></tbody></table></div>
+      <div class="card"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Funções (fluxo)</th><th>Criado</th><th></th></tr></thead><tbody id="tb-acessos"></tbody></table></div>
     </div>
   </div>
 </div>
@@ -444,34 +444,63 @@ async function fnCall(payload){
   return j;
 }
 let ACESSOS=[];
+// Funções atribuíveis. As 6 primeiras são papéis do fluxo (aprovam etapas); facilitador/mediador são funções de rateio.
+const FUNCOES = {direcao_geral:'Direção Geral', direcao_tecnica:'Direção Técnica', coordenacao:'Coordenação', adm_financeiro:'Adm-Financeiro', administrativo:'Administrativo', presidencia:'Presidência', facilitador:'Facilitador', mediador:'Mediador'};
+const funcaoLabel = k => FUNCOES[k]||k;
 async function loadAcessos(){
   const tb = $('#tb-acessos'); if(!tb) return;
   try{
     const { data } = await fnCall({action:'list'});
     ACESSOS = data||[];
     tb.innerHTML = ACESSOS.map(a=>`
-      <tr><td><b>${esc(a.nome)||'—'}</b></td><td>${esc(a.email)}</td><td>${esc(a.role)}</td>
+      <tr><td><b>${esc(a.nome)||'—'}</b></td><td>${esc(a.email)}</td>
+      <td>${(a.papeis&&a.papeis.length)?a.papeis.map(p=>pill(funcaoLabel(p))).join(' '):'<span class="muted">—</span>'}</td>
       <td class="muted">${(a.created_at||'').slice(0,10)}</td>
       <td class="row-actions">
-        <button class="btn btn-sm" style="background:var(--gray-100)" onclick="resetSenha('${a.user_id}','${esc(a.email)}')">Redefinir senha</button>
+        <button class="btn btn-sm btn-primary" onclick="editPapeis('${a.user_id}')">Funções</button>
+        <button class="btn btn-sm" style="background:var(--gray-100)" onclick="resetSenha('${a.user_id}','${esc(a.email)}')">Senha</button>
         <button class="btn btn-sm btn-danger" onclick="delAcesso('${a.user_id}','${esc(a.email)}')">Remover</button>
       </td></tr>`).join('') || '<tr><td colspan="5" class="muted">Nenhum acesso cadastrado.</td></tr>';
   }catch(e){
     tb.innerHTML = `<tr><td colspan="5"><div class="msg err">Não foi possível carregar acessos: ${esc(e.message)}<br><span class="muted">A Edge Function <code>manage-users</code> já foi publicada no Supabase?</span></div></td></tr>`;
   }
 }
+function funcoesChecklist(sel){
+  const s=new Set(sel||[]);
+  return Object.entries(FUNCOES).map(([k,v])=>`<label class="checkline" style="font-weight:400"><input type="checkbox" class="a-func" value="${k}" ${s.has(k)?'checked':''}> ${v}${['facilitador','mediador'].includes(k)?' <span class="muted">(rateio)</span>':''}</label>`).join('');
+}
+function funcoesSelecionadas(){ return Array.from(document.querySelectorAll('.a-func:checked')).map(c=>c.value); }
 function editAcesso(){
-  openDlg('Novo acesso', `
+  openDlg('Novo acesso / pessoa', `
     <label>Nome</label><input id="a-nome" placeholder="Nome da pessoa">
     <label>E-mail (login)</label><input id="a-email" type="email" autocomplete="off">
     <label>Senha inicial (mín. 8 caracteres)</label><input id="a-pass" type="text" autocomplete="off" placeholder="a pessoa poderá trocar depois">
-    <label>Papel</label><select id="a-role"><option value="admin">Admin (acesso total)</option></select>
-    <div class="muted" style="margin-top:8px">O login é criado na hora e já entra na lista de acessos. Passe o e-mail e a senha inicial para a pessoa.</div>
+    <label>Funções</label>
+    <div style="border:1px solid var(--gray-200,#e3e8e8);border-radius:8px;padding:8px 10px">${funcoesChecklist([])}</div>
+    <div class="muted" style="margin-top:8px">As 6 primeiras funções aprovam etapas do fluxo. Facilitador/Mediador servem para o rateio e para receber avisos. Passe o e-mail e a senha inicial para a pessoa.</div>
   `, async ()=>{
-    const email=val('a-email').trim(), password=val('a-pass'), nome=val('a-nome').trim(), role=val('a-role');
+    const email=val('a-email').trim(), password=val('a-pass'), nome=val('a-nome').trim();
     if(!email||!password) throw new Error('Informe e-mail e senha.');
+    const papeis=funcoesSelecionadas();
     $('#dlg-msg').textContent='Criando acesso...';
-    await fnCall({action:'create', email, password, nome, role});
+    const r=await fnCall({action:'create', email, password, nome, role:'admin'});
+    if(papeis.length && r && r.user_id){ await sb.from('ubt_admins').update({papeis}).eq('user_id', r.user_id); }
+    dlg.close(); loadAcessos();
+  });
+}
+function editPapeis(user_id){
+  const a=ACESSOS.find(x=>x.user_id===user_id); if(!a) return;
+  openDlg('Funções — '+(a.nome||a.email), `
+    <label>Nome</label><input id="a-nome" value="${esc(a.nome||'')}">
+    <div class="muted" style="margin:2px 0 8px">${esc(a.email)}</div>
+    <label>Funções atribuídas</label>
+    <div style="border:1px solid var(--gray-200,#e3e8e8);border-radius:8px;padding:8px 10px">${funcoesChecklist(a.papeis)}</div>
+    <div class="muted" style="margin-top:8px">As 6 primeiras aprovam etapas do fluxo (DG, DT, Coordenação, Adm-Financeiro, Administrativo, Presidência). Facilitador/Mediador são para rateio e avisos.</div>
+  `, async ()=>{
+    const papeis=funcoesSelecionadas(); const nome=val('a-nome').trim()||null;
+    $('#dlg-msg').textContent='Salvando...';
+    const {error}=await sb.from('ubt_admins').update({papeis, nome}).eq('user_id', user_id);
+    if(error) throw error;
     dlg.close(); loadAcessos();
   });
 }
@@ -923,10 +952,14 @@ function etapaPronta(etapa, a){
   return null;
 }
 
+let PESSOAS=[];
+const candFor = papel => PESSOAS.filter(p=>(p.papeis||[]).includes(papel));
+function axDestPick(){ const s=document.getElementById('fl-dest'), i=document.getElementById('fl-dest-email'); if(!s||!i) return; i.value=(s.value&&s.value!=='__outro')?s.value:''; if(s.value==='__outro') i.focus(); }
 async function axFlow(id){
   const {data:a} = await sb.from('ubt_acoes').select('*').eq('id',id).single();
   const {data:evs} = await sb.from('ubt_acao_eventos').select('*').eq('acao_id',id).order('created_at');
   if(!ETAPAS.length){ const {data}=await sb.from('ubt_fluxo_etapas').select('*').order('ordem'); ETAPAS=data||[]; }
+  { const {data:pp}=await sb.from('ubt_admins').select('user_id,email,nome,papeis'); PESSOAS=pp||[]; }
   const cur = ETAPAS.find(e=>e.etapa===a.fase) || ETAPAS[0];
   const curOrd = cur ? cur.ordem : 1;
   const done = a.status==='concluida';
@@ -944,7 +977,7 @@ async function axFlow(id){
     const dl = {aprovado:'✅ aprovado',concluido:'☑️ concluído',reprovado:'↩️ devolvido',cancelado:'⛔ cancelado',observacao:'📝 observação'}[ev.decisao]||ev.decisao;
     return `<div style="border-left:2px solid var(--gray-200,#e3e8e8);padding:3px 0 3px 10px;margin-bottom:2px;font-size:12px">
       <b>${esc(etapaNome(ev.etapa))}</b> — ${dl} ${ev.papel?`<span class="muted">(${esc(PAPEL_LABEL[ev.papel]||ev.papel)})</span>`:''}
-      <div class="muted">${(''+ev.created_at).slice(0,16).replace('T',' ')} · ${esc(ev.user_email||'—')}${ev.produto?' · '+esc(ev.produto):''}${ev.observacao?' — '+esc(ev.observacao):''}</div></div>`;
+      <div class="muted">${(''+ev.created_at).slice(0,16).replace('T',' ')} · ${esc(ev.user_email||'—')}${ev.produto?' · '+esc(ev.produto):''}${ev.observacao?' — '+esc(ev.observacao):''}${ev.notificado_email?' · ✉️ avisou '+esc(ev.notificado_nome||ev.notificado_email):''}</div></div>`;
   }).join('') || '<span class="muted">Sem eventos ainda.</span>';
 
   const podeAgir = !done && !canceled && cur && meHasPapel(cur.papel);
@@ -967,6 +1000,16 @@ async function axFlow(id){
       <textarea id="fl-obs" style="min-height:44px"></textarea>
       ${cur.etapa==='ateste'||cur.etapa==='apuracao'||cur.etapa==='autorizacao'
         ? `<div class="checkline"><input type="checkbox" id="fl-segreg"><label style="margin:0">Declaro que não atesto/apuro/autorizo pagamento próprio (art. 15).</label></div>`:''}
+      ${proxima?`<div style="margin-top:10px;padding:8px 10px;background:var(--gray-50,#f6f8f8);border:1px solid var(--gray-200,#e3e8e8);border-radius:8px">
+        <label>Destinatário do aviso — próxima etapa: <b>${esc(proxima.nome)}</b> · ${esc(PAPEL_LABEL[proxima.papel]||proxima.papel)}</label>
+        <select id="fl-dest" onchange="axDestPick()">
+          <option value="">— escolher pessoa (${esc(PAPEL_LABEL[proxima.papel]||proxima.papel)}) —</option>
+          ${candFor(proxima.papel).map(p=>`<option value="${esc(p.email)}">${esc(p.nome||p.email)} — ${esc(p.email)}</option>`).join('')}
+          <option value="__outro">outro e-mail…</option>
+        </select>
+        <input id="fl-dest-email" type="email" placeholder="e-mail do destinatário" style="margin-top:6px">
+        <div class="muted" style="font-size:12px;margin-top:4px">Ao aprovar/concluir, abre um e-mail de aviso (pedido de aprovação) para essa pessoa. O envio automático entra quando o provedor for definido.${candFor(proxima.papel).length?'':' <b>Nenhuma pessoa com essa função ainda</b> — cadastre em Acessos → Funções, ou digite o e-mail.'}</div>
+      </div>`:''}
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
         <button type="button" class="btn btn-primary btn-sm" onclick="axAdvance(${id},'forward')" ${bloqueio?'disabled':''}>
           ${gate?'✅ Aprovar':(isLast?'💸 Executar e concluir':'☑️ Concluir')} — ${esc(cur.nome)}</button>
@@ -1011,7 +1054,15 @@ async function axAdvance(id, dir){
     const bloqueio = etapaPronta(cur.etapa, a);
     if(bloqueio){ alert(bloqueio); return; }
     const prox = ETAPAS.find(e=>e.ordem===cur.ordem+1);
-    await sb.from('ubt_acao_eventos').insert({...base, decisao: gate?'aprovado':'concluido'});
+    const destEmail = (val('fl-dest-email')||'').trim() || null;
+    let destNome=null;
+    if(destEmail){ const {data:pp}=await sb.from('ubt_admins').select('nome').eq('email',destEmail).maybeSingle(); destNome=pp?pp.nome:null; }
+    await sb.from('ubt_acao_eventos').insert({...base, decisao: gate?'aprovado':'concluido', notificado_email:destEmail, notificado_nome:destNome, notificado_em: destEmail?new Date().toISOString():null});
+    if(destEmail && prox){
+      const assunto=`[Brasil Triathlon Academy] ${gate?'Pedido de aprovação':'Próxima etapa'}: ${a.titulo} — ${prox.nome}`;
+      const corpo=`Olá${destNome?' '+destNome:''},\r\n\r\nA ação "${a.titulo}" avançou para a etapa "${prox.nome}" (${PAPEL_LABEL[prox.papel]||prox.papel}) e depende da sua ${gate?'aprovação':'ação'}.\r\n\r\nAcesse o painel para tramitar: ${location.origin}/admin\r\n\r\n— Brasil Triathlon Academy · CBTri`;
+      window.open(`mailto:${encodeURIComponent(destEmail)}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`,'_blank');
+    }
     const upd = {};
     if(prox){ upd.fase = prox.etapa; upd.status = (cur.etapa==='aprovacao_plano') ? 'aprovada' : (a.status==='rascunho'?'em_andamento':a.status); }
     else { upd.status='concluida'; }              // execucao → concluída
