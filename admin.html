@@ -1238,7 +1238,7 @@ async function axAdvance(id, dir){
       const {data:bens}=await sb.from('ubt_acao_beneficiarios').select('nome,email,valor_devido').eq('acao_id',id);
       for(const b of (bens||[])){ if(!b.email) continue;
         const assunto=`[Brasil Triathlon Academy] Pagamento aprovado — ${a.titulo}`;
-        const corpo=`Olá ${b.nome||''},\n\nO pagamento da ação "${a.titulo}"${a.turma_numero?` (${a.turma_numero}ª turma)`:''} foi autorizado e executado, conforme o fluxo aprovado (IN 001/2026 · Portaria 07/2026).\nValor: ${brl(b.valor_devido)}\n\nO termo/recibo com o descritivo está disponível no painel.\n\n— Brasil Triathlon Academy · CBTri`;
+        const corpo=`Olá ${b.nome||''},\n\nO pagamento da ação "${a.titulo}"${a.turma_numero?` (${a.turma_numero}ª turma)`:''} foi autorizado e executado, conforme o fluxo aprovado (IN 001/2026 · Portaria 07/2026).\nValor: ${brl(b.valor_devido)}\n\nAcesse a sua Área do Facilitador para ver o descritivo completo e baixar o termo/recibo:\n${location.origin}/facilitador\n(entre com este e-mail; se ainda não tiver senha, fale com a coordenação)\n\n— Brasil Triathlon Academy · CBTri`;
         await sendAviso(b.email, assunto, corpo, ccFluxo([b.email]));
       }
     }
