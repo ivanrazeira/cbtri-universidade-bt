@@ -607,7 +607,8 @@ function axRenderBenef(){
   const box=document.getElementById('ax-benef'); if(!box) return;
   const modal=val('ax-modalidade')||'A';
   const opt=(arr,cur)=>arr.map(o=>`<option ${cur===o?'selected':''}>${o}</option>`).join('');
-  box.innerHTML = axBenef.map((b,i)=>`<div style="display:grid;grid-template-columns:1.4fr 1fr .95fr .8fr .7fr auto;gap:6px;margin-bottom:6px">
+  box.innerHTML = axBenef.map((b,i)=>`<div style="border:1px solid var(--gray-100,#eef2f2);border-radius:8px;padding:6px;margin-bottom:6px">
+   <div style="display:grid;grid-template-columns:1.4fr 1fr .95fr .8fr .7fr auto;gap:6px;margin-bottom:6px">
     <input value="${esc(b.nome)}" placeholder="nome da parte" onchange="axBenefSet(${i},'nome',this.value)">
     <select onchange="axBenefSet(${i},'funcao_portaria',this.value)">${opt(['principal','colaborador','mediador'],b.funcao_portaria)}</select>
     <select onchange="axBenefSet(${i},'categoria_vinculo',this.value)">${opt(['externo','interno','dirigente'],b.categoria_vinculo)}</select>
@@ -615,7 +616,10 @@ function axRenderBenef(){
       ? `<input type="number" step="0.01" value="${b.valor??''}" placeholder="R$" onchange="axBenefSet(${i},'valor',this.value)">`
       : `<input type="number" step="0.01" value="${b.percentual??''}" placeholder="%" onchange="axBenefSet(${i},'percentual',this.value)">`}
     <select onchange="axBenefSet(${i},'forma_pagamento',this.value)">${opt(['rpa','nf'],b.forma_pagamento)}</select>
-    <button type="button" class="btn btn-sm btn-danger" onclick="axBenefDel(${i})">✕</button></div>`).join('')
+    <button type="button" class="btn btn-sm btn-danger" onclick="axBenefDel(${i})">✕</button>
+   </div>
+   <input type="email" value="${esc(b.email||'')}" placeholder="e-mail do facilitador (cópia no fluxo e aviso de pagamento)" onchange="axBenefSet(${i},'email',this.value)" style="width:100%">
+  </div>`).join('')
     + `<button type="button" class="btn btn-sm" style="background:var(--gray-100);margin-top:2px" onclick="axBenefAdd()">+ parte</button>`;
 }
 function axModalidade(){ axRenderBenef(); axCalc(); }
@@ -728,13 +732,13 @@ function editAcao(id){
     await sb.from('ubt_acao_beneficiarios').delete().eq('acao_id',acaoId);
     if(axBenef.length){ const modal=val('ax-modalidade')||'A';
       const rows=axBenef.map(b=>({acao_id:acaoId, nome:b.nome||'(a definir)', funcao_portaria:b.funcao_portaria||null, categoria_vinculo:b.categoria_vinculo||'externo',
-        modalidade:modal, valor:(modal==='A'?(b.valor??null):null), percentual:(modal==='B'?(b.percentual??null):null), forma_pagamento:b.forma_pagamento||null}));
+        modalidade:modal, valor:(modal==='A'?(b.valor??null):null), percentual:(modal==='B'?(b.percentual??null):null), forma_pagamento:b.forma_pagamento||null, email:(b.email||'').trim()||null}));
       const {error}=await sb.from('ubt_acao_beneficiarios').insert(rows); if(error) throw error; }
     dlg.close(); loadFluxo();
   });
   axRenderLotes();
   if(id){ (async()=>{ const {data}=await sb.from('ubt_acao_beneficiarios').select('*').eq('acao_id',id);
-      axBenef=(data||[]).map(b=>({nome:b.nome,funcao_portaria:b.funcao_portaria,categoria_vinculo:b.categoria_vinculo,valor:b.valor,percentual:b.percentual,forma_pagamento:b.forma_pagamento}));
+      axBenef=(data||[]).map(b=>({nome:b.nome,funcao_portaria:b.funcao_portaria,categoria_vinculo:b.categoria_vinculo,valor:b.valor,percentual:b.percentual,forma_pagamento:b.forma_pagamento,email:b.email}));
       axRenderBenef(); axCalc(); })();
   } else { axRenderBenef(); }
   axCalc();
@@ -911,6 +915,20 @@ async function axPdf(id){
   if(!ETAPAS.length){ const {data}=await sb.from('ubt_fluxo_etapas').select('*').order('ordem'); ETAPAS=data||[]; }
   const {data:evs}=await sb.from('ubt_acao_eventos').select('*').eq('acao_id',id).order('created_at');
   const eventos=evs||[];
+  const {data:admins}=await sb.from('ubt_admins').select('email,nome,papeis');
+  const nomePorEmail={}; (admins||[]).forEach(x=>{ if(x.email) nomePorEmail[x.email.toLowerCase()]=x.nome; });
+  const roleHolder=papel=>{ const h=(admins||[]).find(x=>(x.papeis||[]).includes(papel)); return h?h.nome:''; };
+  const actorName=keys=>{ for(let i=eventos.length-1;i>=0;i--){ const ev=eventos[i]; if(keys.includes(ev.etapa)&&['aprovado','concluido'].includes(ev.decisao)) return nomePorEmail[(ev.user_email||'').toLowerCase()]||ev.user_email||''; } return ''; };
+  const sigDG=actorName(['aprovacao_plano','autorizacao'])||roleHolder('direcao_geral');
+  const sigCoord=actorName(['proposicao'])||roleHolder('coordenacao');
+  const sigDT=actorName(['homologacao_docente','ateste'])||roleHolder('direcao_tecnica');
+  const funcLabel={principal:'Facilitador',colaborador:'Facilitador (colaborador)',mediador:'Mediador'};
+  const sig=(nome,cargo,extra)=>`<div class="sig"><div class="line">${esc(nome||' ')}</div><div class="cargo">${esc(cargo)}${extra?' · '+extra:''}</div></div>`;
+  const assinaturas=`
+    ${sig(sigDG,'Direção Geral')}
+    ${sig(sigCoord,'Coordenação')}
+    ${sig(sigDT,'Direção Técnica')}
+    ${(bens||[]).map(b=>sig(b.nome, funcLabel[b.funcao_portaria]||'Facilitador', apur&&b.valor_devido!=null?('R$ '+Number(devidoDe(b,a.receita_liquida_real)).toLocaleString('pt-BR',{minimumFractionDigits:2})):'')).join('')}`;
   const curOrd=(ETAPAS.find(e=>e.etapa===a.fase)||{}).ordem||1;
   const decLabel={aprovado:'Aprovado',concluido:'Concluído',reprovado:'Devolvido',correcao:'Correção solicitada',cancelado:'Cancelado',observacao:'Observação'};
   const fluxoRows=ETAPAS.map(e=>{const st=a.status==='cancelada'?'Cancelada':(e.ordem<curOrd||a.status==='concluida'?'Concluída':(e.ordem===curOrd&&a.status!=='concluida'?'Em curso':'Pendente'));return `<tr><td style="padding:3px 8px;border:1px solid #ddd">${e.ordem}. ${esc(e.nome)}</td><td style="padding:3px 8px;border:1px solid #ddd">${esc(PAPEL_LABEL[e.papel]||e.papel)}</td><td style="padding:3px 8px;border:1px solid #ddd">${e.prazo_dias_uteis?e.prazo_dias_uteis+' d.ú.':'—'}</td><td style="padding:3px 8px;border:1px solid #ddd;font-weight:600">${st}</td></tr>`;}).join('');
@@ -922,6 +940,10 @@ async function axPdf(id){
   h1{font-size:20px;margin:0 0 2px} h2{font-size:14px;border-bottom:2px solid #0E6B60;color:#0E6B60;margin:20px 0 8px;padding-bottom:3px}
   table{border-collapse:collapse;width:100%} .k td{border:none}
   .tot{font-size:15px;font-weight:700;color:#0E6B60}
+  .sig{display:inline-block;width:46%;margin:34px 1.5% 0;vertical-align:top;text-align:center}
+  .sig .line{border-top:1px solid #333;padding-top:5px;font-weight:600}
+  .sig .cargo{color:#666;font-size:11px}
+  .termo p{font-size:12px;text-align:justify}
   .foot{margin-top:26px;color:#777;font-size:11px;border-top:1px solid #ddd;padding-top:8px}</style></head><body>
   <div style="color:#0E6B60;font-weight:700;letter-spacing:.5px;font-size:12px">BRASIL TRIATHLON ACADEMY · CBTri</div>
   <h1>Plano econômico e rateio — ${esc(a.titulo||'')}</h1>
@@ -951,6 +973,12 @@ async function axPdf(id){
     ${inscritos.map(x=>{const off=x.cancelado||(x.status||'').toLowerCase()!=='pago'; return `<tr style="${off?'color:#999':''}"><td style="padding:3px 6px;border:1px solid #ddd">${esc(x.nome||'')}</td><td style="padding:3px 6px;border:1px solid #ddd">${esc(x.documento||'')}</td><td style="padding:3px 6px;border:1px solid #ddd">${esc(x.lote||'')}</td><td style="padding:3px 6px;border:1px solid #ddd">${esc(x.forma_pagamento||'')}</td><td style="padding:3px 6px;border:1px solid #ddd;text-align:right">${money(x.valor_pago)}</td><td style="padding:3px 6px;border:1px solid #ddd;text-align:right">${money(x.taxa)}</td><td style="padding:3px 6px;border:1px solid #ddd;text-align:right">${money(x.valor_repasse)}</td><td style="padding:3px 6px;border:1px solid #ddd">${esc(x.status||'')}${x.cancelado?' · canc.':''}</td></tr>`;}).join('')||'<tr><td colspan=8 style="padding:6px">Sem inscritos importados.</td></tr>'}
     <tr style="background:#f0f4f3;font-weight:700"><td colspan="4" style="padding:3px 6px;border:1px solid #ddd">Totais (pagas)</td><td style="padding:3px 6px;border:1px solid #ddd;text-align:right">${money(a.valor_pago_total)}</td><td style="padding:3px 6px;border:1px solid #ddd;text-align:right">${money(a.taxa_plataforma_total)}</td><td style="padding:3px 6px;border:1px solid #ddd;text-align:right">${money(a.receita_bruta_real)}</td><td style="padding:3px 6px;border:1px solid #ddd"></td></tr>
   </table>` : ''}
+  <div class="termo" style="page-break-before:always">
+  <h2>Termo de aceite e recibo</h2>
+  <p>Os signatários declaram, para os devidos fins, o <b>aceite</b> do plano econômico e do rateio descritos neste documento, referentes à ação <b>${esc(a.titulo||'')}</b>${a.turma_numero?` (${a.turma_numero}ª turma)`:''}, aprovados conforme o fluxo de competências da Instrução Normativa nº 001/2026 e os parâmetros da Portaria nº 07/2026.${apur?` Os facilitadores/partes abaixo declaram ainda o <b>recebimento</b> dos valores discriminados, a título de contraprestação pelos serviços prestados.`:''}</p>
+  <div style="margin-top:8px">${assinaturas}</div>
+  <p style="margin-top:26px;color:#666">Local e data: ______________________________, ${new Date().toLocaleDateString('pt-BR')}.</p>
+  </div>
   <div class="foot">Documento gerado pela Brasil Triathlon Academy em ${new Date().toLocaleDateString('pt-BR')} · Base: Instrução Normativa nº 001/2026 e Portaria de Parâmetros nº 07/2026 · Retenção institucional mínima 30% da receita líquida.</div>
   <script>window.onload=()=>window.print()<\/script></body></html>`;
   const w=window.open('','_blank'); if(!w){ alert('Permita pop-ups para gerar o PDF.'); return; } w.document.write(html); w.document.close();
@@ -977,6 +1005,14 @@ function ccFluxo(excluir){
   const ex = new Set((excluir||[]).filter(Boolean).map(e=>String(e).toLowerCase()));
   const set = new Set();
   (PESSOAS||[]).forEach(p=>{ if(p.email && (p.papeis||[]).some(r=>FLOW_ROLES.includes(r))){ const e=p.email.toLowerCase(); if(!ex.has(e)) set.add(p.email); } });
+  return Array.from(set);
+}
+async function partyEmails(acaoId){ const {data}=await sb.from('ubt_acao_beneficiarios').select('email').eq('acao_id',acaoId); return (data||[]).map(b=>b.email).filter(Boolean); }
+// cópia = papéis do fluxo + facilitadores da ação, menos o destinatário direto e quem agiu
+async function ccCompleto(acaoId, excluir){
+  const ex = new Set((excluir||[]).filter(Boolean).map(e=>String(e).toLowerCase()));
+  const set = new Set(ccFluxo(excluir));
+  (await partyEmails(acaoId)).forEach(e=>{ if(!ex.has(e.toLowerCase())) set.add(e); });
   return Array.from(set);
 }
 // Envia aviso por e-mail via Resend (Edge Function). Retorna true se enviou; senão abre mailto como fallback.
@@ -1130,7 +1166,7 @@ async function axAdvance(id, dir){
       const total=ETAPAS.length; const resp=PAPEL_LABEL[alvo.papel]||alvo.papel;
       const assunto=`[Brasil Triathlon Academy] Correção — Etapa ${alvo.ordem}/${total}: ${alvo.nome} · ${a.titulo}`;
       const corpo=`Olá${destNome?' '+destNome:''},\n\nAção: ${a.titulo}${a.turma_numero?` (${a.turma_numero}ª turma)`:''}\nCorreção solicitada na Etapa ${alvo.ordem}/${total}: ${alvo.nome}\nResponsável: ${resp}${destNome?` — ${destNome}`:''}\n\nO que corrigir: ${obs2}\n\nAcesse: ${location.origin}/admin\n\n— Brasil Triathlon Academy · CBTri`;
-      const cc=ccFluxo([destEmail, email]);
+      const cc=await ccCompleto(id, [destEmail, email]);
       const enviou = await sendAviso(destEmail, assunto, corpo, cc);
       if(enviou && evRow) await sb.from('ubt_acao_eventos').update({notificado_em:new Date().toISOString()}).eq('id', evRow.id);
     }
@@ -1147,7 +1183,7 @@ async function axAdvance(id, dir){
       const total=ETAPAS.length; const resp=PAPEL_LABEL[prox.papel]||prox.papel;
       const assunto=`[Brasil Triathlon Academy] Etapa ${prox.ordem}/${total} — ${prox.nome} · ${a.titulo}`;
       const corpo=`Olá${destNome?' '+destNome:''},\n\nAção: ${a.titulo}${a.turma_numero?` (${a.turma_numero}ª turma)`:''}\nEtapa ${prox.ordem}/${total}: ${prox.nome}\nResponsável: ${resp}${destNome?` — ${destNome}`:''}\n\n${gate?'Esta etapa depende da sua aprovação no painel.':'Esta etapa aguarda a sua ação no painel.'}\n\nAcesse: ${location.origin}/admin\n\n— Brasil Triathlon Academy · CBTri`;
-      const cc=ccFluxo([destEmail, email]);
+      const cc=await ccCompleto(id, [destEmail, email]);
       const enviou = await sendAviso(destEmail, assunto, corpo, cc);
       if(enviou && evRow) await sb.from('ubt_acao_eventos').update({notificado_em:new Date().toISOString()}).eq('id', evRow.id);
     }
@@ -1156,6 +1192,15 @@ async function axAdvance(id, dir){
     else { upd.status='concluida'; }              // execucao → concluída
     if(cur.etapa==='execucao'){ upd.repasse_confirmado=true; }
     await sb.from('ubt_acoes').update(upd).eq('id',id);
+    // etapa final concluída (execução): avisa os facilitadores do pagamento aprovado
+    if(!prox){
+      const {data:bens}=await sb.from('ubt_acao_beneficiarios').select('nome,email,valor_devido').eq('acao_id',id);
+      for(const b of (bens||[])){ if(!b.email) continue;
+        const assunto=`[Brasil Triathlon Academy] Pagamento aprovado — ${a.titulo}`;
+        const corpo=`Olá ${b.nome||''},\n\nO pagamento da ação "${a.titulo}"${a.turma_numero?` (${a.turma_numero}ª turma)`:''} foi autorizado e executado, conforme o fluxo aprovado (IN 001/2026 · Portaria 07/2026).\nValor: ${brl(b.valor_devido)}\n\nO termo/recibo com o descritivo está disponível no painel.\n\n— Brasil Triathlon Academy · CBTri`;
+        await sendAviso(b.email, assunto, corpo, ccFluxo([b.email]));
+      }
+    }
   }
   loadFluxo(); axOpen(id);
 }
