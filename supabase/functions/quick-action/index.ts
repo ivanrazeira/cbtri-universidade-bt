@@ -3,7 +3,10 @@
 // Cria/lista/remove logins e mantém a lista ubt_admins.
 // Usa a SERVICE_ROLE (secreta, injetada pelo Supabase) — nunca vai ao navegador.
 // Só executa se o chamador for um admin já presente em ubt_admins.
-// Deploy: Supabase Dashboard → Edge Functions → Deploy new function → nome "manage-users".
+// Publicada como "quick-action" (o cliente chama /functions/v1/quick-action).
+// Deploy pelo painel (colar este código na função quick-action) ou por terminal:
+//   npx supabase functions deploy quick-action --project-ref edbyrcyvlowcylljebmq
+// Secrets necessários: RESEND_API_KEY e RESEND_FROM (para a ação "notify").
 // ============================================================
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
