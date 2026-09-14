@@ -81,15 +81,17 @@ Deno.serve(async (req) => {
     // Envio de e-mail de aviso (tramitação) via Resend.
     // Requer os secrets RESEND_API_KEY e (recomendado) RESEND_FROM no projeto.
     if (action === "notify") {
-      const { to, subject, text, html } = body;
+      const { to, cc, subject, text, html } = body;
       if (!to || !subject) return json({ error: "to e subject são obrigatórios" }, 400);
       const RESEND_KEY = Deno.env.get("RESEND_API_KEY");
       if (!RESEND_KEY) return json({ error: "RESEND_API_KEY não configurado no projeto" }, 400);
       const FROM = Deno.env.get("RESEND_FROM") || "Brasil Triathlon Academy <onboarding@resend.dev>";
+      const payload: Record<string, unknown> = { from: FROM, to: [to], subject, text: text || undefined, html: html || undefined };
+      if (Array.isArray(cc) && cc.length) payload.cc = cc;
       const r = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { "Authorization": `Bearer ${RESEND_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ from: FROM, to: [to], subject, text: text || undefined, html: html || undefined }),
+        body: JSON.stringify(payload),
       });
       const jr = await r.json().catch(() => ({}));
       if (!r.ok) return json({ error: (jr as any)?.message || `Resend erro ${r.status}` }, 400);
