@@ -89,6 +89,25 @@ Deno.serve(async (req) => {
       return json({ ok: true, user_id: created.user.id });
     }
 
+    // Redefine a senha de um facilitador pelo e-mail (ele não está em ubt_admins).
+    if (action === "reset_facilitador") {
+      const { email, password } = body;
+      if (!email || !password) return json({ error: "E-mail e senha são obrigatórios" }, 400);
+      if (String(password).length < 8) return json({ error: "A senha deve ter ao menos 8 caracteres" }, 400);
+      let user: any = null, page = 1;
+      while (page <= 20) {
+        const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+        if (error) return json({ error: error.message }, 400);
+        user = (data.users || []).find((u: any) => (u.email || "").toLowerCase() === String(email).toLowerCase());
+        if (user || (data.users || []).length < 1000) break;
+        page++;
+      }
+      if (!user) return json({ error: "Login não encontrado para " + email }, 404);
+      const { error } = await admin.auth.admin.updateUserById(user.id, { password });
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
+    }
+
     // Envio de e-mail de aviso (tramitação) via Resend.
     // Requer os secrets RESEND_API_KEY e (recomendado) RESEND_FROM no projeto.
     if (action === "notify") {

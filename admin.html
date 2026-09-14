@@ -494,14 +494,21 @@ async function loadFacilitadores(){
   (data||[]).forEach(b=>{ const e=(b.email||'').trim(); if(!e) return; const k=e.toLowerCase(); if(!byEmail[k]) byEmail[k]={email:e,nome:b.nome,acoes:new Set()}; byEmail[k].acoes.add(b.acao_id); });
   const rows=Object.values(byEmail);
   tb.innerHTML = rows.map(f=>`<tr><td>${esc(f.nome||'—')}</td><td>${esc(f.email)}</td><td>${f.acoes.size}</td>
-    <td class="row-actions"><button class="btn btn-sm btn-primary" onclick="criarAcessoFacilitador('${esc(f.email)}')">Criar login</button></td></tr>`).join('')
+    <td class="row-actions"><button class="btn btn-sm btn-primary" onclick="criarAcessoFacilitador('${esc(f.email)}')">Criar login</button>
+      <button class="btn btn-sm" style="background:var(--gray-100)" onclick="resetSenhaFacilitador('${esc(f.email)}')">Redefinir senha</button></td></tr>`).join('')
     || '<tr><td colspan="4" class="muted">Nenhum facilitador com e-mail cadastrado. Preencha o e-mail nas partes das ações (Fluxo → Editar).</td></tr>';
 }
 async function criarAcessoFacilitador(email){
   const password = prompt('Senha inicial para o facilitador '+email+' (mín. 8 caracteres). Ele troca depois:');
   if(!password) return;
   try{ await fnCall({action:'create_facilitador', email, password}); alert('Login de facilitador criado.\nEle acessa a área escopada em /facilitador com este e-mail e a senha definida.'); }
-  catch(e){ alert('Erro: '+e.message+(/already/i.test(e.message)?' (esse e-mail já tem login)':'')); }
+  catch(e){ alert('Erro: '+e.message+(/already/i.test(e.message)?' (esse e-mail já tem login — use "Redefinir senha")':'')); }
+}
+async function resetSenhaFacilitador(email){
+  const password = prompt('Nova senha para o facilitador '+email+' (mín. 8 caracteres):');
+  if(!password) return;
+  try{ await fnCall({action:'reset_facilitador', email, password}); alert('Senha redefinida. Passe a nova senha ao facilitador.'); }
+  catch(e){ alert('Erro: '+e.message); }
 }
 function funcoesChecklist(sel){
   const s=new Set(sel||[]);
