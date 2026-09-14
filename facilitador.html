@@ -57,7 +57,7 @@ window.UBT_CONFIG = {
   <div id="app" class="hidden">
     <div class="top">
       <div><div class="brand">BRASIL TRIATHLON ACADEMY · CBTri</div><h1>Minhas ações e recebimentos</h1></div>
-      <div><span id="me" class="muted" style="font-size:13px"></span> <button class="btn btn-ghost btn-sm" onclick="doLogout()">Sair</button></div>
+      <div><span id="me" class="muted" style="font-size:13px"></span> <button class="btn btn-ghost btn-sm" onclick="trocarSenha()">Trocar senha</button> <button class="btn btn-ghost btn-sm" onclick="doLogout()">Sair</button></div>
     </div>
     <div id="lista"></div>
   </div>
@@ -88,6 +88,13 @@ async function doLogin(){
   showApp();
 }
 async function doLogout(){ await sb.auth.signOut(); location.reload(); }
+async function trocarSenha(){
+  const p1 = prompt('Nova senha (mín. 8 caracteres):'); if(!p1) return;
+  if(p1.length<8){ alert('A senha precisa ter ao menos 8 caracteres.'); return; }
+  const p2 = prompt('Confirme a nova senha:'); if(p2!==p1){ alert('As senhas não conferem.'); return; }
+  const { error } = await sb.auth.updateUser({ password: p1 });
+  alert(error ? ('Erro: '+error.message) : 'Senha alterada com sucesso.');
+}
 
 async function showApp(){
   const { data:{ user } } = await sb.auth.getUser();
