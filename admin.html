@@ -971,6 +971,15 @@ function etapaPronta(etapa, a){
 let PESSOAS=[];
 const candFor = papel => PESSOAS.filter(p=>(p.papeis||[]).includes(papel));
 function axDestPick(){ const s=document.getElementById('fl-dest'), i=document.getElementById('fl-dest-email'); if(!s||!i) return; i.value=(s.value&&s.value!=='__outro')?s.value:''; if(s.value==='__outro') i.focus(); }
+// Envia aviso por e-mail via Resend (Edge Function). Retorna true se enviou; senão abre mailto como fallback.
+async function sendAviso(to, subject, text){
+  try{ await fnCall({action:'notify', to, subject, text}); return true; }
+  catch(e){
+    console.warn('Envio automático falhou, usando mailto:', e.message||e);
+    window.open(`mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`,'_blank');
+    return false;
+  }
+}
 const DEC_LABEL = {aprovado:'✅ aprovado',concluido:'☑️ concluído',reprovado:'↩️ devolvido',correcao:'🔧 correção solicitada',cancelado:'⛔ cancelado',observacao:'📝 observação'};
 function axBack(){ const l=document.getElementById('fluxo-lista'), d=document.getElementById('fluxo-detalhe'); if(d){d.classList.add('hidden'); d.innerHTML='';} if(l) l.classList.remove('hidden'); }
 
@@ -1105,12 +1114,13 @@ async function axAdvance(id, dir){
     const alvo = ETAPAS.find(e=>e.etapa===destino);
     const destEmail=(val('fl-corr-email')||'').trim()||null;
     let destNome=null; if(destEmail){ const {data:pp}=await sb.from('ubt_admins').select('nome').eq('email',destEmail).maybeSingle(); destNome=pp?pp.nome:null; }
-    await sb.from('ubt_acao_eventos').insert({...base, decisao:'correcao', observacao:obs2, notificado_email:destEmail, notificado_nome:destNome, notificado_em:destEmail?new Date().toISOString():null});
+    const {data:evRow} = await sb.from('ubt_acao_eventos').insert({...base, decisao:'correcao', observacao:obs2, notificado_email:destEmail, notificado_nome:destNome}).select('id').single();
     await sb.from('ubt_acoes').update({fase:destino, status:'em_andamento'}).eq('id',id);
     if(destEmail && alvo){
       const assunto=`[Brasil Triathlon Academy] Correção solicitada: ${a.titulo} — ${alvo.nome}`;
-      const corpo=`Olá${destNome?' '+destNome:''},\r\n\r\nA ação "${a.titulo}" precisa de correção na etapa "${alvo.nome}" (${PAPEL_LABEL[alvo.papel]||alvo.papel}).\r\n\r\nO que corrigir: ${obs2}\r\n\r\nAcesse o painel: ${location.origin}/admin\r\n\r\n— Brasil Triathlon Academy · CBTri`;
-      window.open(`mailto:${encodeURIComponent(destEmail)}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`,'_blank');
+      const corpo=`Olá${destNome?' '+destNome:''},\n\nA ação "${a.titulo}" precisa de correção na etapa "${alvo.nome}" (${PAPEL_LABEL[alvo.papel]||alvo.papel}).\n\nO que corrigir: ${obs2}\n\nAcesse o painel: ${location.origin}/admin\n\n— Brasil Triathlon Academy · CBTri`;
+      const enviou = await sendAviso(destEmail, assunto, corpo);
+      if(enviou && evRow) await sb.from('ubt_acao_eventos').update({notificado_em:new Date().toISOString()}).eq('id', evRow.id);
     }
   } else { // forward
     const bloqueio = etapaPronta(cur.etapa, a);
@@ -1119,11 +1129,12 @@ async function axAdvance(id, dir){
     const destEmail = (val('fl-dest-email')||'').trim() || null;
     let destNome=null;
     if(destEmail){ const {data:pp}=await sb.from('ubt_admins').select('nome').eq('email',destEmail).maybeSingle(); destNome=pp?pp.nome:null; }
-    await sb.from('ubt_acao_eventos').insert({...base, decisao: gate?'aprovado':'concluido', notificado_email:destEmail, notificado_nome:destNome, notificado_em: destEmail?new Date().toISOString():null});
+    const {data:evRow} = await sb.from('ubt_acao_eventos').insert({...base, decisao: gate?'aprovado':'concluido', notificado_email:destEmail, notificado_nome:destNome}).select('id').single();
     if(destEmail && prox){
       const assunto=`[Brasil Triathlon Academy] ${gate?'Pedido de aprovação':'Próxima etapa'}: ${a.titulo} — ${prox.nome}`;
-      const corpo=`Olá${destNome?' '+destNome:''},\r\n\r\nA ação "${a.titulo}" avançou para a etapa "${prox.nome}" (${PAPEL_LABEL[prox.papel]||prox.papel}) e depende da sua ${gate?'aprovação':'ação'}.\r\n\r\nAcesse o painel para tramitar: ${location.origin}/admin\r\n\r\n— Brasil Triathlon Academy · CBTri`;
-      window.open(`mailto:${encodeURIComponent(destEmail)}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`,'_blank');
+      const corpo=`Olá${destNome?' '+destNome:''},\n\nA ação "${a.titulo}" avançou para a etapa "${prox.nome}" (${PAPEL_LABEL[prox.papel]||prox.papel}) e depende da sua ${gate?'aprovação':'ação'}.\n\nAcesse o painel para tramitar: ${location.origin}/admin\n\n— Brasil Triathlon Academy · CBTri`;
+      const enviou = await sendAviso(destEmail, assunto, corpo);
+      if(enviou && evRow) await sb.from('ubt_acao_eventos').update({notificado_em:new Date().toISOString()}).eq('id', evRow.id);
     }
     const upd = {};
     if(prox){ upd.fase = prox.etapa; upd.status = (cur.etapa==='aprovacao_plano') ? 'aprovada' : (a.status==='rascunho'?'em_andamento':a.status); }
