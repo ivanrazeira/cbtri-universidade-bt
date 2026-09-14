@@ -147,8 +147,14 @@ window.UBT_CONFIG = {
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <h3 style="margin:0">Acessos ao painel</h3><button class="btn btn-primary btn-sm" onclick="editAcesso()">+ Novo acesso</button>
       </div>
-      <div class="muted" style="margin-bottom:10px">Contas com permissão de administrar a Brasil Triathlon Academy. Criar aqui gera o login e libera o acesso automaticamente.</div>
+      <div class="muted" style="margin-bottom:10px">Contas com permissão de administrar a Brasil Triathlon Academy (acesso <b>total</b>). Criar aqui gera o login e libera o acesso automaticamente.</div>
       <div class="card"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Funções (fluxo)</th><th>Criado</th><th></th></tr></thead><tbody id="tb-acessos"></tbody></table></div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin:22px 0 10px">
+        <h3 style="margin:0">Acessos de facilitadores <span class="muted" style="font-size:13px">(escopado)</span></h3>
+      </div>
+      <div class="muted" style="margin-bottom:10px">Logins <b>read-only</b>: o facilitador só enxerga as ações em que é parte (pela área <code>/facilitador</code>), nunca o painel admin. A lista abaixo vem dos e-mails cadastrados nas partes das ações.</div>
+      <div class="card"><table><thead><tr><th>Facilitador</th><th>E-mail</th><th>Ações</th><th></th></tr></thead><tbody id="tb-facilit"></tbody></table></div>
     </div>
   </div>
 </div>
@@ -186,6 +192,17 @@ async function showApp(session){
   const { data: adm, error: admErr } = await sb.from('ubt_admins').select('user_id, papeis').eq('user_id', session.user.id).maybeSingle();
   const isAdmin = !!admErr || !!adm;
   ME = { id: session.user.id, email: session.user?.email||null, papeis: (adm&&adm.papeis)||[], semTabela: !!admErr };
+  // conta que NÃO é staff (ex.: facilitador) não acessa o painel admin — vai para a área escopada
+  if(!isAdmin){
+    $('#app').innerHTML = `<div style="max-width:480px;margin:70px auto;text-align:center;padding:0 20px">
+      <h2 style="margin-bottom:6px">Acesso restrito</h2>
+      <p class="muted">Esta área é da equipe da Brasil Triathlon Academy. Facilitadores acessam a sua própria área, com as ações em que estão vinculados.</p>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:16px">
+        <button class="btn btn-primary" onclick="location.href='/facilitador'">Ir para a Área do Facilitador</button>
+        <button class="btn" style="background:var(--gray-100)" onclick="sb.auth.signOut().then(()=>location.reload())">Sair</button>
+      </div></div>`;
+    return;
+  }
   const banner = $('#not-admin');
   if(banner) banner.classList.toggle('hidden', isAdmin);
   const tabAcessos = $('#tab-acessos');
@@ -465,9 +482,26 @@ async function loadAcessos(){
         <button class="btn btn-sm" style="background:var(--gray-100)" onclick="resetSenha('${a.user_id}','${esc(a.email)}')">Senha</button>
         <button class="btn btn-sm btn-danger" onclick="delAcesso('${a.user_id}','${esc(a.email)}')">Remover</button>
       </td></tr>`).join('') || '<tr><td colspan="5" class="muted">Nenhum acesso cadastrado.</td></tr>';
+    loadFacilitadores();
   }catch(e){
     tb.innerHTML = `<tr><td colspan="5"><div class="msg err">Não foi possível carregar acessos: ${esc(e.message)}<br><span class="muted">A Edge Function <code>manage-users</code> já foi publicada no Supabase?</span></div></td></tr>`;
   }
+}
+async function loadFacilitadores(){
+  const tb=$('#tb-facilit'); if(!tb) return;
+  const { data } = await sb.from('ubt_acao_beneficiarios').select('nome,email,acao_id').not('email','is',null);
+  const byEmail={};
+  (data||[]).forEach(b=>{ const e=(b.email||'').trim(); if(!e) return; const k=e.toLowerCase(); if(!byEmail[k]) byEmail[k]={email:e,nome:b.nome,acoes:new Set()}; byEmail[k].acoes.add(b.acao_id); });
+  const rows=Object.values(byEmail);
+  tb.innerHTML = rows.map(f=>`<tr><td>${esc(f.nome||'—')}</td><td>${esc(f.email)}</td><td>${f.acoes.size}</td>
+    <td class="row-actions"><button class="btn btn-sm btn-primary" onclick="criarAcessoFacilitador('${esc(f.email)}')">Criar login</button></td></tr>`).join('')
+    || '<tr><td colspan="4" class="muted">Nenhum facilitador com e-mail cadastrado. Preencha o e-mail nas partes das ações (Fluxo → Editar).</td></tr>';
+}
+async function criarAcessoFacilitador(email){
+  const password = prompt('Senha inicial para o facilitador '+email+' (mín. 8 caracteres). Ele troca depois:');
+  if(!password) return;
+  try{ await fnCall({action:'create_facilitador', email, password}); alert('Login de facilitador criado.\nEle acessa a área escopada em /facilitador com este e-mail e a senha definida.'); }
+  catch(e){ alert('Erro: '+e.message+(/already/i.test(e.message)?' (esse e-mail já tem login)':'')); }
 }
 function funcoesChecklist(sel){
   const s=new Set(sel||[]);

@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Área do Facilitador · Brasil Triathlon Academy</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--navy:#0b2b27;--teal:#159a8c;--gray-50:#f6f8f8;--gray-100:#eef2f2;--gray-200:#e3e8e8;--red:#e5484d;--radius:12px}
+*{box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;margin:0;background:var(--gray-50);color:var(--navy)}
+.wrap{max-width:860px;margin:0 auto;padding:20px}
+h1{font-size:20px;margin:0}
+.muted{color:#66787a}
+.card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:16px;margin-bottom:14px}
+label{display:block;font-size:12px;font-weight:600;color:#445;margin-top:8px}
+input{width:100%;padding:9px 11px;border:1px solid var(--gray-200);border-radius:8px;font-size:14px;margin-top:4px}
+.btn{border:none;border-radius:8px;padding:9px 14px;font-weight:600;font-size:14px;cursor:pointer;background:var(--teal);color:#fff}
+.btn-sm{padding:6px 10px;font-size:13px}
+.btn-ghost{background:var(--gray-100);color:var(--navy)}
+.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px;flex-wrap:wrap}
+.pill{display:inline-block;background:var(--gray-100);border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600}
+.pago{background:#e8f5ee;color:#166534}
+.grid{display:grid;grid-template-columns:1fr auto;gap:4px 14px;font-size:14px;margin-top:6px}
+.msg{padding:9px 12px;border-radius:8px;font-size:14px}
+.err{background:#fdecec;color:#a11}
+.hidden{display:none}
+.brand{color:var(--teal);font-weight:700;letter-spacing:.5px;font-size:12px}
+</style>
+</head>
+<body>
+<script>
+window.UBT_CONFIG = {
+  SUPABASE_URL: "https://edbyrcyvlowcylljebmq.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_g-Hpp9Y3nIDRgva2nkSlcw_FiQTHkfs"
+};
+</script>
+
+<div class="wrap">
+  <!-- LOGIN -->
+  <div id="login" class="card hidden" style="max-width:420px;margin:60px auto">
+    <div class="brand">BRASIL TRIATHLON ACADEMY · CBTri</div>
+    <h1 style="margin:6px 0 2px">Área do Facilitador</h1>
+    <div class="muted" style="font-size:13px">Acesse com o e-mail em que você foi cadastrado como facilitador.</div>
+    <label>E-mail</label><input id="lg-email" type="email" autocomplete="username">
+    <label>Senha</label><input id="lg-pass" type="password" autocomplete="current-password">
+    <div id="lg-msg" style="margin-top:8px"></div>
+    <button class="btn" style="width:100%;margin-top:12px" onclick="doLogin()">Entrar</button>
+  </div>
+
+  <!-- APP -->
+  <div id="app" class="hidden">
+    <div class="top">
+      <div><div class="brand">BRASIL TRIATHLON ACADEMY · CBTri</div><h1>Minhas ações e recebimentos</h1></div>
+      <div><span id="me" class="muted" style="font-size:13px"></span> <button class="btn btn-ghost btn-sm" onclick="doLogout()">Sair</button></div>
+    </div>
+    <div id="lista"></div>
+  </div>
+</div>
+
+<script>
+const cfg = window.UBT_CONFIG;
+const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+const $ = s => document.querySelector(s);
+const esc = s => (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const brl = n => (n==null||n===''||isNaN(n)) ? '—' : 'R$ '+Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const funcLabel = {principal:'Facilitador', colaborador:'Facilitador (colaborador)', mediador:'Mediador'};
+const statusLabel = {rascunho:'Em elaboração', aprovada:'Plano aprovado', em_andamento:'Em andamento', concluida:'Concluída (pago)', cancelada:'Cancelada'};
+let ME_EMAIL='';
+
+async function boot(){
+  const { data:{ session } } = await sb.auth.getSession();
+  if(session){ showApp(); } else { $('#login').classList.remove('hidden'); }
+}
+async function doLogin(){
+  const email=$('#lg-email').value.trim(), password=$('#lg-pass').value;
+  $('#lg-msg').innerHTML='';
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if(error){ $('#lg-msg').innerHTML=`<div class="msg err">${esc(error.message)}</div>`; return; }
+  showApp();
+}
+async function doLogout(){ await sb.auth.signOut(); location.reload(); }
+
+async function showApp(){
+  const { data:{ user } } = await sb.auth.getUser();
+  ME_EMAIL = (user?.email||'').toLowerCase();
+  $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
+  $('#me').textContent = user?.email||'';
+  // RLS devolve só as ações onde este e-mail é parte, e só as próprias linhas de rateio
+  const { data:acoes, error:e1 } = await sb.from('ubt_acoes').select('*');
+  const { data:partes, error:e2 } = await sb.from('ubt_acao_beneficiarios').select('*');
+  const lista = $('#lista');
+  if(e1||e2){ lista.innerHTML=`<div class="card"><div class="msg err">${esc((e1||e2).message)}</div></div>`; return; }
+  const minhas = (partes||[]).filter(p=>(p.email||'').toLowerCase()===ME_EMAIL);
+  if(!minhas.length){ lista.innerHTML=`<div class="card"><div class="muted">Nenhuma ação vinculada ao seu e-mail (${esc(ME_EMAIL)}). Se você deveria constar como facilitador, fale com a coordenação.</div></div>`; return; }
+  const acaoById = {}; (acoes||[]).forEach(a=>acaoById[a.id]=a);
+  window.__DATA = {acaoById, minhas};
+  lista.innerHTML = minhas.map((p,idx)=>{
+    const a = acaoById[p.acao_id] || {};
+    const apur = a.apurado_em;
+    const devido = p.valor_devido!=null ? p.valor_devido : null;
+    const base = (p.modalidade==='B'||p.percentual!=null) ? ((p.percentual||0)+'% da receita líquida') : brl(p.valor);
+    const pago = a.status==='concluida' || p.pago;
+    return `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+        <div>
+          <div style="font-weight:700;font-size:16px">${esc(a.titulo||'(ação)')}</div>
+          <div class="muted" style="font-size:13px">${a.turma_numero?a.turma_numero+'ª turma · ':''}${esc(a.formato||'')} ${a.carga_horaria?('· '+esc(a.carga_horaria)):''}</div>
+        </div>
+        <span class="pill ${pago?'pago':''}">${esc(statusLabel[a.status]||a.status||'')}</span>
+      </div>
+      <div class="grid">
+        <span>Sua função</span><b style="text-align:right">${esc(funcLabel[p.funcao_portaria]||p.funcao_portaria||'Facilitador')}</b>
+        <span>Base do rateio</span><span style="text-align:right">${esc(base)}</span>
+        <span>Forma de pagamento</span><span style="text-align:right">${(p.forma_pagamento||'—').toUpperCase()}</span>
+        <span>Valor a receber</span><b style="text-align:right">${apur?brl(devido):'a apurar'}</b>
+        <span>Situação</span><b style="text-align:right;${pago?'color:#166534':''}">${pago?'Pagamento aprovado':'Em processamento'}</b>
+      </div>
+      <div style="margin-top:10px"><button class="btn btn-ghost btn-sm" onclick="recibo(${idx})">📄 Ver recibo</button></div>
+    </div>`;
+  }).join('');
+}
+
+function recibo(idx){
+  const {acaoById, minhas} = window.__DATA; const p = minhas[idx]; const a = acaoById[p.acao_id]||{};
+  const apur = a.apurado_em;
+  const devido = p.valor_devido!=null ? p.valor_devido : null;
+  const base = (p.modalidade==='B'||p.percentual!=null) ? ((p.percentual||0)+'% da receita líquida') : brl(p.valor);
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Recibo — ${esc(a.titulo||'')}</title>
+  <style>body{font-family:Arial,Helvetica,sans-serif;color:#111;max-width:640px;margin:32px auto;padding:0 20px;font-size:13px;line-height:1.6}
+  h1{font-size:18px;margin:0 0 2px}h2{font-size:13px;color:#0E6B60;border-bottom:2px solid #0E6B60;padding-bottom:3px;margin:18px 0 8px}
+  table{border-collapse:collapse;width:100%}td{padding:4px 8px}.k td:first-child{color:#555}
+  .sig{margin-top:48px;text-align:center}.sig .line{border-top:1px solid #333;padding-top:5px;font-weight:600;width:70%;margin:0 auto}
+  .foot{margin-top:26px;color:#777;font-size:11px;border-top:1px solid #ddd;padding-top:8px}</style></head><body>
+  <div style="color:#0E6B60;font-weight:700;letter-spacing:.5px;font-size:12px">BRASIL TRIATHLON ACADEMY · CBTri</div>
+  <h1>Recibo / termo de aceite — facilitador</h1>
+  <div style="color:#666">${esc(a.titulo||'')}${a.turma_numero?` · ${a.turma_numero}ª turma`:''}</div>
+  <h2>Dados</h2><table class="k">
+    <tr><td>Facilitador</td><td style="font-weight:600">${esc(p.nome||'')}</td></tr>
+    <tr><td>Função</td><td>${esc(funcLabel[p.funcao_portaria]||p.funcao_portaria||'Facilitador')}</td></tr>
+    <tr><td>Base do rateio</td><td>${esc(base)}</td></tr>
+    <tr><td>Forma de pagamento</td><td>${(p.forma_pagamento||'—').toUpperCase()}</td></tr>
+    <tr><td>Valor</td><td style="font-weight:700;color:#0E6B60">${apur?brl(devido):'a apurar'}</td></tr>
+  </table>
+  <p style="margin-top:14px">Declaro o aceite da minha participação e, quando o valor estiver apurado e pago, o recebimento da importância acima, referente aos serviços prestados na ação indicada, em conformidade com a Instrução Normativa nº 001/2026 e a Portaria nº 07/2026.</p>
+  <div class="sig"><div class="line">${esc(p.nome||'')}</div></div>
+  <p style="margin-top:26px;color:#666">Local e data: ______________________________, ${new Date().toLocaleDateString('pt-BR')}.</p>
+  <div class="foot">Documento gerado pela Brasil Triathlon Academy em ${new Date().toLocaleDateString('pt-BR')}.</div>
+  <script>window.onload=()=>window.print()<\/script></body></html>`;
+  const w=window.open('','_blank'); if(!w){ alert('Permita pop-ups para gerar o recibo.'); return; } w.document.write(html); w.document.close();
+}
+
+boot();
+</script>
+</body>
+</html>

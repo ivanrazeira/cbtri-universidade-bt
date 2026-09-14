@@ -78,6 +78,17 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
 
+    // Cria login ESCOPADO de facilitador: conta de auth SEM entrar em ubt_admins.
+    // O acesso dele é limitado por RLS às ações onde o e-mail é parte (migration 027).
+    if (action === "create_facilitador") {
+      const { email, password } = body;
+      if (!email || !password) return json({ error: "E-mail e senha são obrigatórios" }, 400);
+      if (String(password).length < 8) return json({ error: "A senha deve ter ao menos 8 caracteres" }, 400);
+      const { data: created, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, user_id: created.user.id });
+    }
+
     // Envio de e-mail de aviso (tramitação) via Resend.
     // Requer os secrets RESEND_API_KEY e (recomendado) RESEND_FROM no projeto.
     if (action === "notify") {
