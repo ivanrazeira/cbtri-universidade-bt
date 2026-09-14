@@ -132,12 +132,15 @@ window.UBT_CONFIG = {
     </div>
 
     <div id="pane-fluxo" class="hidden">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
-        <h3 style="margin:0">Fluxo financeiro das ações <span id="fx-count" class="muted"></span></h3>
-        <button class="btn btn-primary btn-sm" onclick="editAcao(null)">+ Nova ação (curso)</button>
+      <div id="fluxo-lista">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+          <h3 style="margin:0">Fluxo financeiro das ações <span id="fx-count" class="muted"></span></h3>
+          <button class="btn btn-primary btn-sm" onclick="editAcao(null)">+ Nova ação (curso)</button>
+        </div>
+        <div class="muted" style="margin-bottom:10px">Cadastro da oferta com pré-preenchimento pela <b>Portaria 07/2026</b> e plano econômico automático (IN 001/2026). Retenção institucional mínima: <b>30%</b> da receita líquida.</div>
+        <div class="card"><table><thead><tr><th>Título</th><th>Tipo</th><th>Modal.</th><th>Fase</th><th>Retenção proj.</th><th>Status</th><th></th></tr></thead><tbody id="tb-fluxo"></tbody></table></div>
       </div>
-      <div class="muted" style="margin-bottom:10px">Cadastro da oferta com pré-preenchimento pela <b>Portaria 07/2026</b> e plano econômico automático (IN 001/2026). Retenção institucional mínima: <b>30%</b> da receita líquida.</div>
-      <div class="card"><table><thead><tr><th>Título</th><th>Tipo</th><th>Modal.</th><th>Fase</th><th>Retenção proj.</th><th>Status</th><th></th></tr></thead><tbody id="tb-fluxo"></tbody></table></div>
+      <div id="fluxo-detalhe" class="hidden"></div>
     </div>
 
     <div id="pane-acessos" class="hidden">
@@ -205,6 +208,7 @@ function switchTab(t){
     $('#pane-'+x).classList.toggle('hidden', x!==t);
     document.querySelector(`.tab[data-tab="${x}"]`).classList.toggle('active', x===t);
   });
+  if(t==='fluxo' && typeof axBack==='function') axBack();
 }
 
 /* ---------- DIÁLOGO ---------- */
@@ -549,7 +553,7 @@ async function loadFluxo(){
       <td style="${retLow?'color:var(--red);font-weight:700':''}">${ret}${usaReal?' <span class="muted">(real)</span>':''}${retLow?' ⚠️':''}</td>
       <td>${esc(a.status)}</td>
       <td class="row-actions">
-        <button class="btn btn-sm" style="background:var(--navy,#0b2b27);color:#fff" onclick="axFlow(${a.id})">🔀 Tramitação</button>
+        <button class="btn btn-sm" style="background:var(--navy,#0b2b27);color:#fff" onclick="axOpen(${a.id})">🔀 Gerir fluxo</button>
         <button class="btn btn-sm" style="background:var(--gray-100)" onclick="editAcao(${a.id})">Editar</button>
         <button class="btn btn-sm" style="background:var(--gray-100)" onclick="axDemo(${a.id})">💵 Demonstrativo</button>
         <button class="btn btn-sm" style="background:var(--gray-100)" onclick="axPdf(${a.id})">📄 PDF</button>
@@ -908,7 +912,7 @@ async function axPdf(id){
   const {data:evs}=await sb.from('ubt_acao_eventos').select('*').eq('acao_id',id).order('created_at');
   const eventos=evs||[];
   const curOrd=(ETAPAS.find(e=>e.etapa===a.fase)||{}).ordem||1;
-  const decLabel={aprovado:'Aprovado',concluido:'Concluído',reprovado:'Devolvido',cancelado:'Cancelado',observacao:'Observação'};
+  const decLabel={aprovado:'Aprovado',concluido:'Concluído',reprovado:'Devolvido',correcao:'Correção solicitada',cancelado:'Cancelado',observacao:'Observação'};
   const fluxoRows=ETAPAS.map(e=>{const st=a.status==='cancelada'?'Cancelada':(e.ordem<curOrd||a.status==='concluida'?'Concluída':(e.ordem===curOrd&&a.status!=='concluida'?'Em curso':'Pendente'));return `<tr><td style="padding:3px 8px;border:1px solid #ddd">${e.ordem}. ${esc(e.nome)}</td><td style="padding:3px 8px;border:1px solid #ddd">${esc(PAPEL_LABEL[e.papel]||e.papel)}</td><td style="padding:3px 8px;border:1px solid #ddd">${e.prazo_dias_uteis?e.prazo_dias_uteis+' d.ú.':'—'}</td><td style="padding:3px 8px;border:1px solid #ddd;font-weight:600">${st}</td></tr>`;}).join('');
   const logRows=eventos.map(ev=>`<tr><td style="padding:3px 8px;border:1px solid #ddd;white-space:nowrap">${(''+ev.created_at).slice(0,16).replace('T',' ')}</td><td style="padding:3px 8px;border:1px solid #ddd">${esc(etapaNome(ev.etapa))}</td><td style="padding:3px 8px;border:1px solid #ddd">${esc(decLabel[ev.decisao]||ev.decisao)}</td><td style="padding:3px 8px;border:1px solid #ddd">${esc(PAPEL_LABEL[ev.papel]||ev.papel||'—')}</td><td style="padding:3px 8px;border:1px solid #ddd">${esc(ev.user_email||'—')}</td><td style="padding:3px 8px;border:1px solid #ddd">${esc([ev.produto,ev.observacao].filter(Boolean).join(' — ')||'')}${ev.notificado_email?'<br><span style="color:#777">✉️ avisou '+esc(ev.notificado_nome||ev.notificado_email)+'</span>':''}</td></tr>`).join('')||'<tr><td colspan=6 style="padding:6px">Sem eventos registrados.</td></tr>';
   const lotes=(a.lotes||[]).map(l=>`<tr><td style="padding:3px 8px;border:1px solid #ddd">${esc(l.nome||'')}</td><td style="padding:3px 8px;border:1px solid #ddd">${money(l.valor)}</td><td style="padding:3px 8px;border:1px solid #ddd">${l.vagas??'—'}</td><td style="padding:3px 8px;border:1px solid #ddd">${l.ate?(''+l.ate).slice(0,10):'—'}</td></tr>`).join('');
@@ -967,43 +971,48 @@ function etapaPronta(etapa, a){
 let PESSOAS=[];
 const candFor = papel => PESSOAS.filter(p=>(p.papeis||[]).includes(papel));
 function axDestPick(){ const s=document.getElementById('fl-dest'), i=document.getElementById('fl-dest-email'); if(!s||!i) return; i.value=(s.value&&s.value!=='__outro')?s.value:''; if(s.value==='__outro') i.focus(); }
-async function axFlow(id){
+const DEC_LABEL = {aprovado:'✅ aprovado',concluido:'☑️ concluído',reprovado:'↩️ devolvido',correcao:'🔧 correção solicitada',cancelado:'⛔ cancelado',observacao:'📝 observação'};
+function axBack(){ const l=document.getElementById('fluxo-lista'), d=document.getElementById('fluxo-detalhe'); if(d){d.classList.add('hidden'); d.innerHTML='';} if(l) l.classList.remove('hidden'); }
+
+async function axOpen(id){
+  const box=document.getElementById('fluxo-detalhe'), lista=document.getElementById('fluxo-lista');
+  if(!box) return;
+  lista.classList.add('hidden'); box.classList.remove('hidden'); box.innerHTML='<div class="muted">Carregando…</div>';
   const {data:a} = await sb.from('ubt_acoes').select('*').eq('id',id).single();
   const {data:evs} = await sb.from('ubt_acao_eventos').select('*').eq('acao_id',id).order('created_at');
   if(!ETAPAS.length){ const {data}=await sb.from('ubt_fluxo_etapas').select('*').order('ordem'); ETAPAS=data||[]; }
   { const {data:pp}=await sb.from('ubt_admins').select('user_id,email,nome,papeis'); PESSOAS=pp||[]; }
   const cur = ETAPAS.find(e=>e.etapa===a.fase) || ETAPAS[0];
   const curOrd = cur ? cur.ordem : 1;
-  const done = a.status==='concluida';
-  const canceled = a.status==='cancelada';
+  const done = a.status==='concluida', canceled = a.status==='cancelada';
+  const tipo=OFERTA_TIPOS.find(t=>t.id===a.tipo_oferta_id);
+
   const timeline = ETAPAS.map(e=>{
     const st = canceled ? 'cancel' : (e.ordem<curOrd||done ? 'ok' : (e.ordem===curOrd&&!done ? 'now' : 'wait'));
     const ic = st==='ok'?'✅':st==='now'?'🟡':st==='cancel'?'⛔':'⚪';
     const prazo = e.prazo_dias_uteis ? `${e.prazo_dias_uteis} dias úteis${e.prazo_referencia?' · '+e.prazo_referencia.replace(/_/g,' '):''}` : '—';
-    return `<div style="display:grid;grid-template-columns:24px 1fr auto;gap:8px;padding:5px 0;${st==='now'?'background:#fff8e1;border-radius:6px;padding-left:6px':''}">
+    return `<div style="display:grid;grid-template-columns:24px 1fr auto;gap:8px;padding:6px 0;border-bottom:1px solid var(--gray-100,#eef2f2);${st==='now'?'background:#fff8e1;border-radius:6px;padding-left:6px':''}">
       <div style="text-align:center">${ic}</div>
       <div><b>${e.ordem}. ${esc(e.nome)}</b><div class="muted" style="font-size:12px">Responsável: ${esc(PAPEL_LABEL[e.papel]||e.papel)} · produto: ${esc(e.produto)}</div></div>
       <div class="muted" style="font-size:12px;text-align:right">${prazo}</div></div>`;
   }).join('');
-  const hist = (evs||[]).map(ev=>{
-    const dl = {aprovado:'✅ aprovado',concluido:'☑️ concluído',reprovado:'↩️ devolvido',cancelado:'⛔ cancelado',observacao:'📝 observação'}[ev.decisao]||ev.decisao;
-    return `<div style="border-left:2px solid var(--gray-200,#e3e8e8);padding:3px 0 3px 10px;margin-bottom:2px;font-size:12px">
-      <b>${esc(etapaNome(ev.etapa))}</b> — ${dl} ${ev.papel?`<span class="muted">(${esc(PAPEL_LABEL[ev.papel]||ev.papel)})</span>`:''}
-      <div class="muted">${(''+ev.created_at).slice(0,16).replace('T',' ')} · ${esc(ev.user_email||'—')}${ev.produto?' · '+esc(ev.produto):''}${ev.observacao?' — '+esc(ev.observacao):''}${ev.notificado_email?' · ✉️ avisou '+esc(ev.notificado_nome||ev.notificado_email):''}</div></div>`;
-  }).join('') || '<span class="muted">Sem eventos ainda.</span>';
+  const hist = (evs||[]).map(ev=>`<div style="border-left:2px solid var(--gray-200,#e3e8e8);padding:3px 0 3px 10px;margin-bottom:3px;font-size:12px">
+      <b>${esc(etapaNome(ev.etapa))}</b> — ${DEC_LABEL[ev.decisao]||ev.decisao} ${ev.papel?`<span class="muted">(${esc(PAPEL_LABEL[ev.papel]||ev.papel)})</span>`:''}
+      <div class="muted">${(''+ev.created_at).slice(0,16).replace('T',' ')} · ${esc(ev.user_email||'—')}${ev.produto?' · '+esc(ev.produto):''}${ev.observacao?' — '+esc(ev.observacao):''}${ev.notificado_email?' · ✉️ avisou '+esc(ev.notificado_nome||ev.notificado_email):''}</div></div>`).join('') || '<span class="muted">Sem eventos ainda.</span>';
 
   const podeAgir = !done && !canceled && cur && meHasPapel(cur.papel);
   const bloqueio = cur ? etapaPronta(cur.etapa, a) : null;
   const isLast = cur && cur.ordem===ETAPAS.length;
   const proxima = cur ? ETAPAS.find(e=>e.ordem===cur.ordem+1) : null;
-  const anterior = cur ? ETAPAS.find(e=>e.ordem===cur.ordem-1) : null;
+  const gate = cur ? ETAPA_GATE[cur.etapa] : null;
+  const anteriores = ETAPAS.filter(e=>e.ordem<curOrd);
+  const anterior = ETAPAS.find(e=>e.ordem===curOrd-1);
 
   let acaoHtml='';
-  if(done) acaoHtml = `<div class="msg ok" style="background:#e8f5ee;color:#166534;padding:8px;border-radius:6px">✅ Ação concluída — pagamento executado.</div>`;
+  if(done) acaoHtml = `<div class="msg ok" style="background:#e8f5ee;color:#166534;padding:10px;border-radius:6px">✅ Ação concluída — pagamento executado.</div>`;
   else if(canceled) acaoHtml = `<div class="msg err">⛔ Ação cancelada.</div>`;
-  else if(!podeAgir) acaoHtml = `<div class="msg" style="background:#fff8e1;color:#7a5c00;padding:8px;border-radius:6px">Etapa atual sob responsabilidade de <b>${esc(PAPEL_LABEL[cur.papel]||cur.papel)}</b>. Sua conta não tem esse papel — aguardando a pessoa responsável. <span class="muted">(defina papéis em ubt_admins.papeis)</span></div>`;
+  else if(!podeAgir) acaoHtml = `<div class="msg" style="background:#fff8e1;color:#7a5c00;padding:10px;border-radius:6px">Etapa atual sob responsabilidade de <b>${esc(PAPEL_LABEL[cur.papel]||cur.papel)}</b>. Sua conta não tem essa função — aguardando a pessoa responsável. <span class="muted">(atribua funções em Acessos → Funções)</span></div>`;
   else {
-    const gate = ETAPA_GATE[cur.etapa];
     acaoHtml = `
       ${bloqueio?`<div class="msg err" style="margin-bottom:8px">⚠️ ${esc(bloqueio)}</div>`:''}
       <label>Produto / referência da etapa (nota, arquivo, nº)</label>
@@ -1020,28 +1029,58 @@ async function axFlow(id){
           <option value="__outro">outro e-mail…</option>
         </select>
         <input id="fl-dest-email" type="email" placeholder="e-mail do destinatário" style="margin-top:6px">
-        <div class="muted" style="font-size:12px;margin-top:4px">Ao aprovar/concluir, abre um e-mail de aviso (pedido de aprovação) para essa pessoa. O envio automático entra quando o provedor for definido.${candFor(proxima.papel).length?'':' <b>Nenhuma pessoa com essa função ainda</b> — cadastre em Acessos → Funções, ou digite o e-mail.'}</div>
+        <div class="muted" style="font-size:12px;margin-top:4px">Ao aprovar/concluir, abre um e-mail de aviso para essa pessoa. Envio automático quando o provedor for definido.${candFor(proxima.papel).length?'':' <b>Ninguém com essa função</b> — cadastre em Acessos → Funções, ou digite o e-mail.'}</div>
       </div>`:''}
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
         <button type="button" class="btn btn-primary btn-sm" onclick="axAdvance(${id},'forward')" ${bloqueio?'disabled':''}>
           ${gate?'✅ Aprovar':(isLast?'💸 Executar e concluir':'☑️ Concluir')} — ${esc(cur.nome)}</button>
-        ${gate?`<button type="button" class="btn btn-sm btn-danger" onclick="axAdvance(${id},'back')">↩️ Devolver</button>`:''}
+        ${anteriores.length?`<button type="button" class="btn btn-sm btn-danger" onclick="axToggleCorr()">🔧 Solicitar correção</button>`:''}
         <button type="button" class="btn btn-sm" style="background:var(--gray-100)" onclick="axAdvance(${id},'obs')">📝 Só registrar observação</button>
-      </div>`;
+      </div>
+      ${anteriores.length?`<div id="fl-corr" class="hidden" style="margin-top:10px;padding:10px;background:#fff5f5;border:1px solid #f3caca;border-radius:8px">
+        <div style="font-weight:700;color:#b3261e;margin-bottom:4px">Solicitar correção</div>
+        <label>Devolver para a etapa</label>
+        <select id="fl-corr-destino" onchange="axCorrPick()">
+          ${anteriores.map(e=>`<option value="${e.etapa}" ${e.etapa===(anterior&&anterior.etapa)?'selected':''}>${e.ordem}. ${esc(e.nome)} · ${esc(PAPEL_LABEL[e.papel]||e.papel)}</option>`).join('')}
+        </select>
+        <label>O que precisa ser corrigido (obrigatório)</label>
+        <textarea id="fl-corr-obs" style="min-height:44px" placeholder="Descreva o ajuste necessário"></textarea>
+        <label>Avisar (e-mail do responsável pela correção)</label>
+        <input id="fl-corr-email" type="email" placeholder="e-mail">
+        <div style="margin-top:8px"><button type="button" class="btn btn-sm btn-danger" onclick="axAdvance(${id},'corrigir')">Enviar pedido de correção</button></div>
+      </div>`:''}`;
   }
 
-  openDlg('Tramitação — '+(a.titulo||''), `
-    <div class="muted" style="margin-bottom:6px">Status: <b>${esc(a.status)}</b> · Fase atual: <b>${esc(cur?cur.nome:a.fase)}</b>${ME.papeis&&ME.papeis.length?` · seu(s) papel(éis): ${ME.papeis.map(p=>PAPEL_LABEL[p]||p).join(', ')}`:''}</div>
-    <div class="blk" style="font-weight:700;color:var(--navy,#0b2b27)">Fluxo (IN 001/2026 art. 14)</div>
-    <div style="border:1px solid var(--gray-200,#e3e8e8);border-radius:8px;padding:8px 10px;margin:4px 0 12px">${timeline}</div>
-    <div class="blk" style="font-weight:700;color:var(--navy,#0b2b27)">Ação nesta etapa</div>
-    <div id="fl-acao" style="margin:4px 0 12px">${acaoHtml}</div>
-    <div class="blk" style="font-weight:700;color:var(--navy,#0b2b27)">Histórico</div>
-    <div style="max-height:180px;overflow:auto;margin-top:4px">${hist}</div>
-  `, async ()=>{ dlg.close(); });
-  // esconde o botão "Salvar" padrão: nesta janela as ações são os botões inline
-  const sv=document.getElementById('dlg-save'); if(sv) sv.style.display='none';
+  box.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      <div>
+        <button class="btn btn-sm" style="background:var(--gray-100)" onclick="axBack()">← Voltar</button>
+        <h3 style="margin:8px 0 2px">${esc(a.titulo||'')}</h3>
+        <div class="muted">${tipo?esc(tipo.nome):''} · Modalidade ${esc(a.modalidade||'')}${a.turma_numero?` · ${a.turma_numero}ª turma`:''} · Status <b>${esc(a.status)}</b> · Fase <b>${esc(cur?cur.nome:a.fase)}</b></div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-sm" style="background:var(--gray-100)" onclick="editAcao(${id})">Editar</button>
+        <button class="btn btn-sm" style="background:var(--gray-100)" onclick="axDemo(${id})">💵 Demonstrativo</button>
+        <button class="btn btn-sm" style="background:var(--gray-100)" onclick="axPdf(${id})">📄 PDF</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start">
+      <div class="card" style="padding:12px">
+        <div class="blk" style="font-weight:700;color:var(--navy,#0b2b27)">Fluxo (IN 001/2026 art. 14)</div>
+        <div style="margin-top:4px">${timeline}</div>
+      </div>
+      <div class="card" style="padding:12px">
+        <div class="blk" style="font-weight:700;color:var(--navy,#0b2b27)">Ação nesta etapa${ME.papeis&&ME.papeis.length?` <span class="muted" style="font-weight:400">· você: ${ME.papeis.map(p=>PAPEL_LABEL[p]||p).join(', ')}</span>`:''}</div>
+        <div style="margin-top:6px">${acaoHtml}</div>
+      </div>
+    </div>
+    <div class="card" style="padding:12px;margin-top:14px">
+      <div class="blk" style="font-weight:700;color:var(--navy,#0b2b27)">Histórico / log de tramitação</div>
+      <div style="margin-top:6px">${hist}</div>
+    </div>`;
 }
+function axToggleCorr(){ const c=document.getElementById('fl-corr'); if(c){ c.classList.toggle('hidden'); if(!c.classList.contains('hidden')) axCorrPick(); } }
+function axCorrPick(){ const s=document.getElementById('fl-corr-destino'), i=document.getElementById('fl-corr-email'); if(!s||!i) return; const p=candFor((ETAPAS.find(e=>e.etapa===s.value)||{}).papel)[0]; if(p&&!i.value) i.value=p.email; }
 
 async function axAdvance(id, dir){
   const {data:a} = await sb.from('ubt_acoes').select('*').eq('id',id).single();
@@ -1058,10 +1097,21 @@ async function axAdvance(id, dir){
 
   if(dir==='obs'){
     await sb.from('ubt_acao_eventos').insert({...base, decisao:'observacao'});
-  } else if(dir==='back'){
-    const prev = ETAPAS.find(e=>e.ordem===cur.ordem-1);
-    await sb.from('ubt_acao_eventos').insert({...base, decisao:'reprovado'});
-    await sb.from('ubt_acoes').update({fase: prev?prev.etapa:cur.etapa, status:'em_andamento'}).eq('id',id);
+  } else if(dir==='corrigir'){
+    const destino = val('fl-corr-destino');
+    const obs2 = (val('fl-corr-obs')||'').trim();
+    if(!destino){ alert('Escolha a etapa para onde enviar a correção.'); return; }
+    if(!obs2){ alert('Descreva o que precisa ser corrigido.'); return; }
+    const alvo = ETAPAS.find(e=>e.etapa===destino);
+    const destEmail=(val('fl-corr-email')||'').trim()||null;
+    let destNome=null; if(destEmail){ const {data:pp}=await sb.from('ubt_admins').select('nome').eq('email',destEmail).maybeSingle(); destNome=pp?pp.nome:null; }
+    await sb.from('ubt_acao_eventos').insert({...base, decisao:'correcao', observacao:obs2, notificado_email:destEmail, notificado_nome:destNome, notificado_em:destEmail?new Date().toISOString():null});
+    await sb.from('ubt_acoes').update({fase:destino, status:'em_andamento'}).eq('id',id);
+    if(destEmail && alvo){
+      const assunto=`[Brasil Triathlon Academy] Correção solicitada: ${a.titulo} — ${alvo.nome}`;
+      const corpo=`Olá${destNome?' '+destNome:''},\r\n\r\nA ação "${a.titulo}" precisa de correção na etapa "${alvo.nome}" (${PAPEL_LABEL[alvo.papel]||alvo.papel}).\r\n\r\nO que corrigir: ${obs2}\r\n\r\nAcesse o painel: ${location.origin}/admin\r\n\r\n— Brasil Triathlon Academy · CBTri`;
+      window.open(`mailto:${encodeURIComponent(destEmail)}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`,'_blank');
+    }
   } else { // forward
     const bloqueio = etapaPronta(cur.etapa, a);
     if(bloqueio){ alert(bloqueio); return; }
@@ -1081,7 +1131,7 @@ async function axAdvance(id, dir){
     if(cur.etapa==='execucao'){ upd.repasse_confirmado=true; }
     await sb.from('ubt_acoes').update(upd).eq('id',id);
   }
-  dlg.close(); loadFluxo(); axFlow(id);
+  loadFluxo(); axOpen(id);
 }
 
 boot();
