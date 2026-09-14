@@ -22,6 +22,11 @@ input{width:100%;padding:9px 11px;border:1px solid var(--gray-200);border-radius
 .pill{display:inline-block;background:var(--gray-100);border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600}
 .pago{background:#e8f5ee;color:#166534}
 .grid{display:grid;grid-template-columns:1fr auto;gap:4px 14px;font-size:14px;margin-top:6px}
+.sec{font-weight:700;color:var(--navy);margin:16px 0 4px;padding-top:10px;border-top:1px solid var(--gray-100)}
+.mini{width:100%;border-collapse:collapse;font-size:12.5px}
+.mini th,.mini td{padding:4px 8px;border-bottom:1px solid var(--gray-100);text-align:left;white-space:nowrap}
+.mini thead th{font-size:11px;text-transform:uppercase;letter-spacing:.3px;color:#66787a}
+.mini tfoot td{border-bottom:none;padding-top:6px}
 .msg{padding:9px 12px;border-radius:8px;font-size:14px}
 .err{background:#fdecec;color:#a11}
 .hidden{display:none}
@@ -66,7 +71,10 @@ const esc = s => (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':
 const brl = n => (n==null||n===''||isNaN(n)) ? '—' : 'R$ '+Number(n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const funcLabel = {principal:'Facilitador', colaborador:'Facilitador (colaborador)', mediador:'Mediador'};
 const statusLabel = {rascunho:'Em elaboração', aprovada:'Plano aprovado', em_andamento:'Em andamento', concluida:'Concluída (pago)', cancelada:'Cancelada'};
-let ME_EMAIL='';
+const PAPEL_LABEL = {coordenacao:'Coordenação', direcao_tecnica:'Direção Técnica', direcao_geral:'Direção Geral', administrativo:'Administrativo', adm_financeiro:'Adm-Financeiro', presidencia:'Presidência'};
+const DEC_LABEL = {aprovado:'aprovado', concluido:'concluído', reprovado:'devolvido', correcao:'correção solicitada', cancelado:'cancelado', observacao:'observação'};
+let ME_EMAIL='', ETAPAS=[];
+const etapaNome = k => (ETAPAS.find(e=>e.etapa===k)||{}).nome || k;
 
 async function boot(){
   const { data:{ session } } = await sb.auth.getSession();
@@ -86,43 +94,126 @@ async function showApp(){
   ME_EMAIL = (user?.email||'').toLowerCase();
   $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
   $('#me').textContent = user?.email||'';
-  // RLS devolve só as ações onde este e-mail é parte, e só as próprias linhas de rateio
-  const { data:acoes, error:e1 } = await sb.from('ubt_acoes').select('*');
-  const { data:partes, error:e2 } = await sb.from('ubt_acao_beneficiarios').select('*');
+  const [{ data:acoes, error:e1 }, { data:partes, error:e2 }, { data:evs }, { data:et }] = await Promise.all([
+    sb.from('ubt_acoes').select('*'),
+    sb.from('ubt_acao_beneficiarios').select('*'),
+    sb.from('ubt_acao_eventos').select('*').order('created_at'),
+    sb.from('ubt_fluxo_etapas').select('*').order('ordem')
+  ]);
+  ETAPAS = et||[];
   const lista = $('#lista');
   if(e1||e2){ lista.innerHTML=`<div class="card"><div class="msg err">${esc((e1||e2).message)}</div></div>`; return; }
-  const minhas = (partes||[]).filter(p=>(p.email||'').toLowerCase()===ME_EMAIL);
-  if(!minhas.length){ lista.innerHTML=`<div class="card"><div class="muted">Nenhuma ação vinculada ao seu e-mail (${esc(ME_EMAIL)}). Se você deveria constar como facilitador, fale com a coordenação.</div></div>`; return; }
-  const acaoById = {}; (acoes||[]).forEach(a=>acaoById[a.id]=a);
-  window.__DATA = {acaoById, minhas};
-  lista.innerHTML = minhas.map((p,idx)=>{
-    const a = acaoById[p.acao_id] || {};
-    const apur = a.apurado_em;
-    const devido = p.valor_devido!=null ? p.valor_devido : null;
-    const base = (p.modalidade==='B'||p.percentual!=null) ? ((p.percentual||0)+'% da receita líquida') : brl(p.valor);
-    const pago = a.status==='concluida' || p.pago;
-    return `<div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
-        <div>
-          <div style="font-weight:700;font-size:16px">${esc(a.titulo||'(ação)')}</div>
-          <div class="muted" style="font-size:13px">${a.turma_numero?a.turma_numero+'ª turma · ':''}${esc(a.formato||'')} ${a.carga_horaria?('· '+esc(a.carga_horaria)):''}</div>
-        </div>
-        <span class="pill ${pago?'pago':''}">${esc(statusLabel[a.status]||a.status||'')}</span>
-      </div>
-      <div class="grid">
-        <span>Sua função</span><b style="text-align:right">${esc(funcLabel[p.funcao_portaria]||p.funcao_portaria||'Facilitador')}</b>
-        <span>Base do rateio</span><span style="text-align:right">${esc(base)}</span>
-        <span>Forma de pagamento</span><span style="text-align:right">${(p.forma_pagamento||'—').toUpperCase()}</span>
-        <span>Valor a receber</span><b style="text-align:right">${apur?brl(devido):'a apurar'}</b>
-        <span>Situação</span><b style="text-align:right;${pago?'color:#166534':''}">${pago?'Pagamento aprovado':'Em processamento'}</b>
-      </div>
-      <div style="margin-top:10px"><button class="btn btn-ghost btn-sm" onclick="recibo(${idx})">📄 Ver recibo</button></div>
-    </div>`;
-  }).join('');
+  const minhasAcoes = (acoes||[]).filter(a=>(partes||[]).some(p=>p.acao_id===a.id && (p.email||'').toLowerCase()===ME_EMAIL));
+  if(!minhasAcoes.length){ lista.innerHTML=`<div class="card"><div class="muted">Nenhuma ação vinculada ao seu e-mail (${esc(ME_EMAIL)}). Se você deveria constar como facilitador, fale com a coordenação.</div></div>`; return; }
+  window.__DATA = {acoes:minhasAcoes, partes:partes||[], evs:evs||[]};
+  lista.innerHTML = minhasAcoes.map((a,i)=>cardAcao(a, i)).join('');
+}
+
+function partesDe(acaoId){ return (window.__DATA.partes||[]).filter(p=>p.acao_id===acaoId); }
+function minhaParte(acaoId){ return partesDe(acaoId).find(p=>(p.email||'').toLowerCase()===ME_EMAIL); }
+function baseTxt(p){ return (p.modalidade==='B'||p.percentual!=null) ? ((p.percentual||0)+'% da receita líquida') : brl(p.valor); }
+
+function cardAcao(a, idx){
+  const apur=a.apurado_em, mine=minhaParte(a.id)||{}, pago=a.status==='concluida'||mine.pago;
+  const partes=partesDe(a.id);
+  const lotes=(a.lotes||[]).map(l=>`<tr><td>${esc(l.nome||'')}</td><td>${brl(l.valor)}</td><td>${l.vagas??'—'}</td><td>${l.ate?(''+l.ate).slice(0,10):'—'}</td></tr>`).join('');
+  const totalDevido=partes.reduce((s,p)=>s+(apur?(Number(p.valor_devido)||0):0),0);
+  const rateio=partes.map(p=>`<tr style="${(p.email||'').toLowerCase()===ME_EMAIL?'background:#eef7f5;font-weight:600':''}">
+     <td>${esc(p.nome||'')}${(p.email||'').toLowerCase()===ME_EMAIL?' <span class="muted">(você)</span>':''}</td>
+     <td>${esc(funcLabel[p.funcao_portaria]||p.funcao_portaria||'')}</td><td>${esc(baseTxt(p))}</td>
+     <td style="text-align:right">${apur&&p.valor_devido!=null?brl(p.valor_devido):'a apurar'}</td></tr>`).join('');
+  // fluxo
+  const curOrd=(ETAPAS.find(e=>e.etapa===a.fase)||{}).ordem||1;
+  const done=a.status==='concluida', canc=a.status==='cancelada';
+  const timeline=ETAPAS.map(e=>{ const st=canc?'⛔':(e.ordem<curOrd||done?'✅':(e.ordem===curOrd&&!done?'🟡':'⚪'));
+     return `<div style="display:flex;gap:8px;padding:4px 0;${e.ordem===curOrd&&!done?'background:#fff8e1;border-radius:6px;padding-left:6px':''}"><span>${st}</span><span><b>${e.ordem}. ${esc(e.nome)}</b> <span class="muted">· ${esc(PAPEL_LABEL[e.papel]||e.papel)}</span></span></div>`;}).join('');
+  const evs=(window.__DATA.evs||[]).filter(x=>x.acao_id===a.id);
+  const log=evs.map(ev=>`<div style="border-left:2px solid var(--gray-200);padding:2px 0 2px 10px;margin-bottom:2px;font-size:12px"><b>${esc(etapaNome(ev.etapa))}</b> — ${esc(DEC_LABEL[ev.decisao]||ev.decisao)} <span class="muted">· ${(''+ev.created_at).slice(0,16).replace('T',' ')} · ${esc(ev.user_email||'')}</span></div>`).join('')||'<span class="muted">Sem registros.</span>';
+
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+      <div><div style="font-weight:700;font-size:17px">${esc(a.titulo||'(ação)')}</div>
+        <div class="muted" style="font-size:13px">${a.turma_numero?a.turma_numero+'ª turma · ':''}${esc(a.formato||'')} ${a.carga_horaria?('· '+esc(a.carga_horaria)):''}</div></div>
+      <span class="pill ${pago?'pago':''}">${esc(statusLabel[a.status]||a.status||'')}</span>
+    </div>
+
+    <div class="sec">Seu recebimento</div>
+    <div class="grid">
+      <span>Sua função</span><b style="text-align:right">${esc(funcLabel[mine.funcao_portaria]||mine.funcao_portaria||'Facilitador')}</b>
+      <span>Base do rateio</span><span style="text-align:right">${esc(baseTxt(mine))}</span>
+      <span>Forma de pagamento</span><span style="text-align:right">${(mine.forma_pagamento||'—').toUpperCase()}</span>
+      <span>Valor a receber</span><b style="text-align:right">${apur&&mine.valor_devido!=null?brl(mine.valor_devido):'a apurar'}</b>
+      <span>Situação</span><b style="text-align:right;${pago?'color:#166534':''}">${pago?'Pagamento aprovado':'Em processamento'}</b>
+    </div>
+
+    <div class="sec">Oferta</div>
+    <div class="grid">
+      <span>Inscrições</span><span style="text-align:right">${(a.inscricoes_abertura||'—')} a ${(a.inscricoes_encerramento||'—')}</span>
+      <span>Modalidade</span><span style="text-align:right">${esc(a.modalidade||'')}</span>
+    </div>
+    ${lotes?`<table class="mini" style="margin-top:6px"><thead><tr><th>Lote</th><th>Valor</th><th>Vagas</th><th>Vigente até</th></tr></thead><tbody>${lotes}</tbody></table>`:''}
+
+    <div class="sec">Plano econômico / demonstrativo</div>
+    <div class="grid">
+      ${apur?`<span>Inscritos pagos</span><b style="text-align:right">${a.inscritos_pagos??'—'}</b>
+      <span>Receita (repasse CBTri)</span><b style="text-align:right">${brl(a.receita_bruta_real)}</b>
+      <span>Receita líquida</span><b style="text-align:right">${brl(a.receita_liquida_real)}</b>
+      <span>Retenção institucional CBTri</span><b style="text-align:right">${brl(a.retencao_apurada)}</b>`
+      :`<span>Receita líquida projetada</span><b style="text-align:right">${brl(a.receita_liquida_proj)}</b>
+      <span class="muted">Situação</span><span class="muted" style="text-align:right">ainda não apurado</span>`}
+    </div>
+
+    <div class="sec">Rateio${apur?' apurado':' (partes)'}</div>
+    <table class="mini"><thead><tr><th>Parte</th><th>Função</th><th>Base</th><th style="text-align:right">Valor</th></tr></thead>
+      <tbody>${rateio}</tbody>
+      ${apur?`<tfoot><tr><td colspan="3"><b>Total repasses às partes</b></td><td style="text-align:right"><b>${brl(totalDevido)}</b></td></tr></tfoot>`:''}</table>
+
+    <div class="sec">Fluxo de aprovação (IN 001/2026 art. 14)</div>
+    <div style="border:1px solid var(--gray-200);border-radius:8px;padding:8px 10px">${timeline}</div>
+    <div class="muted" style="font-size:12px;margin:8px 0 4px">Registro de tramitação</div>
+    <div>${log}</div>
+
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-sm" onclick="pdfCurso(${idx})">📄 Baixar PDF do curso</button>
+      <button class="btn btn-ghost btn-sm" onclick="recibo(${idx})">🧾 Meu recibo</button>
+    </div>
+  </div>`;
+}
+
+function pdfCurso(idx){
+  const a=window.__DATA.acoes[idx]; const partes=partesDe(a.id); const apur=a.apurado_em; const mine=minhaParte(a.id)||{};
+  const evs=(window.__DATA.evs||[]).filter(x=>x.acao_id===a.id);
+  const row=(k,v)=>`<tr><td style="padding:3px 8px;color:#555">${k}</td><td style="padding:3px 8px;font-weight:600">${v}</td></tr>`;
+  const lotes=(a.lotes||[]).map(l=>`<tr><td style="padding:3px 8px;border:1px solid #ddd">${esc(l.nome||'')}</td><td style="padding:3px 8px;border:1px solid #ddd">${brl(l.valor)}</td><td style="padding:3px 8px;border:1px solid #ddd">${l.vagas??'—'}</td></tr>`).join('');
+  const rateio=partes.map(p=>`<tr><td style="padding:3px 8px;border:1px solid #ddd">${esc(p.nome||'')}</td><td style="padding:3px 8px;border:1px solid #ddd">${esc(funcLabel[p.funcao_portaria]||'')}</td><td style="padding:3px 8px;border:1px solid #ddd">${esc(baseTxt(p))}</td><td style="padding:3px 8px;border:1px solid #ddd">${apur&&p.valor_devido!=null?brl(p.valor_devido):'a apurar'}</td></tr>`).join('');
+  const curOrd=(ETAPAS.find(e=>e.etapa===a.fase)||{}).ordem||1;
+  const fluxo=ETAPAS.map(e=>{const st=a.status==='concluida'||e.ordem<curOrd?'Concluída':(e.ordem===curOrd?'Em curso':'Pendente');return `<tr><td style="padding:3px 8px;border:1px solid #ddd">${e.ordem}. ${esc(e.nome)}</td><td style="padding:3px 8px;border:1px solid #ddd">${esc(PAPEL_LABEL[e.papel]||e.papel)}</td><td style="padding:3px 8px;border:1px solid #ddd">${st}</td></tr>`;}).join('');
+  const log=evs.map(ev=>`<tr><td style="padding:3px 8px;border:1px solid #ddd">${(''+ev.created_at).slice(0,16).replace('T',' ')}</td><td style="padding:3px 8px;border:1px solid #ddd">${esc(etapaNome(ev.etapa))}</td><td style="padding:3px 8px;border:1px solid #ddd">${esc(DEC_LABEL[ev.decisao]||ev.decisao)}</td><td style="padding:3px 8px;border:1px solid #ddd">${esc(ev.user_email||'')}</td></tr>`).join('');
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>${esc(a.titulo||'')} — facilitador</title>
+  <style>body{font-family:Arial,Helvetica,sans-serif;color:#111;max-width:720px;margin:24px auto;padding:0 20px;font-size:13px;line-height:1.5}
+  h1{font-size:19px;margin:0 0 2px}h2{font-size:14px;color:#0E6B60;border-bottom:2px solid #0E6B60;padding-bottom:3px;margin:18px 0 8px}
+  table{border-collapse:collapse;width:100%}.k td{border:none}
+  .sig{margin-top:44px;text-align:center}.sig .line{border-top:1px solid #333;padding-top:5px;font-weight:600;width:70%;margin:0 auto}
+  .foot{margin-top:24px;color:#777;font-size:11px;border-top:1px solid #ddd;padding-top:8px}</style></head><body>
+  <div style="color:#0E6B60;font-weight:700;letter-spacing:.5px;font-size:12px">BRASIL TRIATHLON ACADEMY · CBTri</div>
+  <h1>${esc(a.titulo||'')}</h1><div style="color:#666">${a.turma_numero?a.turma_numero+'ª turma · ':''}Modalidade ${esc(a.modalidade||'')} · Facilitador: ${esc(mine.nome||ME_EMAIL)}</div>
+  <h2>Oferta</h2><table class="k">${row('Formato',esc(a.formato||'—'))}${row('Carga horária',esc(a.carga_horaria||'—'))}${row('Inscrições',(a.inscricoes_abertura||'—')+' a '+(a.inscricoes_encerramento||'—'))}${a.resumo?row('Resumo',esc(a.resumo)):''}</table>
+  ${lotes?`<h2>Lotes</h2><table><tr style="background:#f0f4f3"><th style="padding:4px 8px;border:1px solid #ddd;text-align:left">Lote</th><th style="padding:4px 8px;border:1px solid #ddd;text-align:left">Valor</th><th style="padding:4px 8px;border:1px solid #ddd;text-align:left">Vagas</th></tr>${lotes}</table>`:''}
+  <h2>Rateio${apur?' apurado':''}</h2><table><tr style="background:#f0f4f3"><th style="padding:4px 8px;border:1px solid #ddd;text-align:left">Parte</th><th style="padding:4px 8px;border:1px solid #ddd;text-align:left">Função</th><th style="padding:4px 8px;border:1px solid #ddd;text-align:left">Base</th><th style="padding:4px 8px;border:1px solid #ddd;text-align:left">Valor</th></tr>${rateio}</table>
+  ${apur?`<table class="k" style="margin-top:6px">${row('Receita (repasse CBTri)',brl(a.receita_bruta_real))}${row('Receita líquida',brl(a.receita_liquida_real))}${row('Retenção institucional CBTri',brl(a.retencao_apurada))}</table>`:''}
+  <h2>Fluxo de aprovação</h2><table><tr style="background:#f0f4f3"><th style="padding:4px 8px;border:1px solid #ddd;text-align:left">Etapa</th><th style="padding:4px 8px;border:1px solid #ddd;text-align:left">Responsável</th><th style="padding:4px 8px;border:1px solid #ddd;text-align:left">Situação</th></tr>${fluxo}</table>
+  ${log?`<h2>Registro de tramitação</h2><table style="font-size:11px"><tr style="background:#f0f4f3"><th style="padding:3px 8px;border:1px solid #ddd;text-align:left">Data</th><th style="padding:3px 8px;border:1px solid #ddd;text-align:left">Etapa</th><th style="padding:3px 8px;border:1px solid #ddd;text-align:left">Decisão</th><th style="padding:3px 8px;border:1px solid #ddd;text-align:left">Responsável</th></tr>${log}</table>`:''}
+  <h2>Recibo / termo de aceite — facilitador</h2>
+  <p>Declaro o aceite da minha participação e, quando apurado e pago, o recebimento do valor de <b>${apur&&mine.valor_devido!=null?brl(mine.valor_devido):'(a apurar)'}</b> referente aos serviços prestados nesta ação, conforme a IN nº 001/2026 e a Portaria nº 07/2026.</p>
+  <div class="sig"><div class="line">${esc(mine.nome||ME_EMAIL)}</div></div>
+  <p style="margin-top:22px;color:#666">Local e data: ______________________________, ${new Date().toLocaleDateString('pt-BR')}.</p>
+  <div class="foot">Documento gerado pela Brasil Triathlon Academy em ${new Date().toLocaleDateString('pt-BR')}. Contém o fluxo de aprovação e o rateio da ação; a lista de inscritos é omitida por proteção de dados.</div>
+  <script>window.onload=()=>window.print()<\/script></body></html>`;
+  const w=window.open('','_blank'); if(!w){ alert('Permita pop-ups para gerar o PDF.'); return; } w.document.write(html); w.document.close();
 }
 
 function recibo(idx){
-  const {acaoById, minhas} = window.__DATA; const p = minhas[idx]; const a = acaoById[p.acao_id]||{};
+  const a = window.__DATA.acoes[idx]; const p = minhaParte(a.id)||{};
   const apur = a.apurado_em;
   const devido = p.valor_devido!=null ? p.valor_devido : null;
   const base = (p.modalidade==='B'||p.percentual!=null) ? ((p.percentual||0)+'% da receita líquida') : brl(p.valor);
