@@ -64,6 +64,14 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--text)
 .btn-top.outline:hover{background:rgba(255,255,255,.1)}
 .btn-top.primary{background:var(--blue);color:var(--white)}
 .btn-top.primary:hover{background:var(--blue-light)}
+.btn-top.acesso{display:inline-flex;align-items:center;gap:4px;text-decoration:none;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);color:var(--white);text-transform:none;letter-spacing:0;white-space:nowrap}
+.btn-top.acesso:hover{background:rgba(255,255,255,.14)}
+.btn-top.acesso.treinador{background:rgba(250,204,21,.16);border-color:rgba(250,204,21,.6)}
+.btn-top.acesso.treinador:hover{background:rgba(250,204,21,.28)}
+.topbar-sep{width:1px;height:22px;background:rgba(255,255,255,.2);margin:0 2px}
+@media(max-width:1100px){.topbar-brand .brand-sub{display:none}}
+@media(max-width:900px){.btn-top.navegacao,.topbar-sep{display:none}.topbar-brand .brand-name{font-size:13px}.btn-top.acesso:not(.treinador) .rotulo{display:none}.btn-top.acesso:not(.treinador){padding:7px 10px;font-size:15px}}
+@media(max-width:560px){.btn-top.acesso .rotulo{display:none}.btn-top.acesso{padding:7px 10px;font-size:15px}.topbar-actions{gap:6px}}
 
 /* ── SIDEBAR ── */
 .sidebar{
@@ -614,14 +622,6 @@ tbody td{padding:13px 16px;font-size:13px;color:var(--text)}
     <span class="nav-icon">✉️</span> Contato
   </a>
   <div class="sidebar-footer">
-    <!-- Área do Treinador fica na Plataforma Brasil Triathlon (perfil esportivo,
-         vínculos). O Academy guarda a parte acadêmica. Com o login único
-         (Etapa 8 do módulo de Treinadores), este botão passa a entrar direto. -->
-    <a href="https://plataforma.triathlonbrasil.org.br/treinador/login" title="Perfil esportivo do treinador na Plataforma Brasil Triathlon" style="display:block;margin-bottom:8px;padding:10px 6px;border-radius:8px;background:rgba(250,204,21,.16);border:1px solid rgba(250,204,21,.55);color:#fff;text-decoration:none;font-size:12px;font-weight:700;text-align:center">🏅 Área do Treinador</a>
-    <div style="display:flex;gap:8px;margin-bottom:14px">
-      <a href="/admin" title="Acesso da equipe CBTri" style="flex:1;display:block;padding:9px 6px;border-radius:8px;background:rgba(0,168,232,.15);border:1px solid rgba(0,168,232,.45);color:#fff;text-decoration:none;font-size:11px;font-weight:600;text-align:center">🔒 Administrativo</a>
-      <a href="/facilitador" title="Acesso do facilitador" style="flex:1;display:block;padding:9px 6px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);color:#fff;text-decoration:none;font-size:11px;font-weight:600;text-align:center">🎓 Facilitador</a>
-    </div>
     © 2026 CBTri · Todos os direitos reservados
   </div>
 </aside>
@@ -636,8 +636,14 @@ tbody td{padding:13px 16px;font-size:13px;color:var(--text)}
     </div>
   </div>
   <div class="topbar-actions">
-    <button class="btn-top outline" onclick="goPage('calendario',document.querySelector('[onclick*=calendario]'))">Calendário</button>
-    <button class="btn-top primary" onclick="goPage('cursos',document.querySelector('[onclick*=cursos]'))">Ver Cursos</button>
+    <!-- Acessos: treinador (Plataforma Brasil Triathlon), facilitador e equipe CBTri.
+         No celular viram só ícone; Calendário e Ver Cursos ficam no menu lateral. -->
+    <a class="btn-top acesso treinador" href="https://plataforma.triathlonbrasil.org.br/treinador/login" title="Área do Treinador — Plataforma Brasil Triathlon" aria-label="Área do Treinador"><span aria-hidden="true">🏅</span><span class="rotulo"> Área do Treinador</span></a>
+    <a class="btn-top acesso" href="/facilitador" title="Acesso do facilitador" aria-label="Facilitador"><span aria-hidden="true">🎓</span><span class="rotulo"> Facilitador</span></a>
+    <a class="btn-top acesso" href="/admin" title="Acesso da equipe CBTri" aria-label="Administrativo"><span aria-hidden="true">🔒</span><span class="rotulo"> Administrativo</span></a>
+    <span class="topbar-sep" aria-hidden="true"></span>
+    <button class="btn-top outline navegacao" onclick="goPage('calendario',document.querySelector('[onclick*=calendario]'))">Calendário</button>
+    <button class="btn-top primary navegacao" onclick="goPage('cursos',document.querySelector('[onclick*=cursos]'))">Ver Cursos</button>
   </div>
 </header>
 
