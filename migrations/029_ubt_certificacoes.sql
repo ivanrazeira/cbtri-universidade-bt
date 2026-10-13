@@ -12,6 +12,15 @@
 
 begin;
 
+-- Trava contra o projeto errado: no projeto da PLATAFORMA não existem as
+-- tabelas do Academy nem ubt_is_admin() (já aconteceu de colar aqui lá).
+do $$
+begin
+  if to_regclass('public.ubt_admins') is null or to_regprocedure('public.ubt_is_admin()') is null then
+    raise exception 'PROJETO ERRADO: esta migration é do Academy (projeto edbyrcyvlowcylljebmq). Troque o projeto no painel do Supabase e rode de novo.';
+  end if;
+end $$;
+
 create table if not exists ubt_certificacoes (
   id         uuid primary key default gen_random_uuid(),
   nome       text not null check (char_length(btrim(nome)) between 3 and 150),
