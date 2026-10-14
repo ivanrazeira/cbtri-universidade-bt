@@ -141,10 +141,10 @@ window.UBT_CONFIG = {
           <button class="btn btn-primary btn-sm" onclick="exportCertCsv()">⬇ Exportar CSV</button>
         </div>
       </div>
-      <div class="muted" style="margin-bottom:10px">Registro acadêmico de quem concluiu cada nível (N1, N2, WT1). O perfil esportivo do treinador fica na <b>Plataforma Brasil Triathlon</b>; quem está aqui pode ativar o pré-cadastro em <b>plataforma.triathlonbrasil.org.br/treinador/cadastro/certificado</b> com o e-mail e o CREF do curso.</div>
+      <div class="muted" style="margin-bottom:10px">Registro acadêmico de quem concluiu cada nível (N1, N2, WT1 e N1P — Nível 1 com habilitação em Paratriathlon). O perfil esportivo do treinador fica na <b>Plataforma Brasil Triathlon</b>; quem está aqui pode ativar o pré-cadastro em <b>plataforma.triathlonbrasil.org.br/treinador/cadastro/certificado</b> com o e-mail e o CREF do curso.</div>
       <div class="card" style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;padding:12px">
         <input id="ct-busca" placeholder="Buscar por nome, e-mail ou CREF" oninput="renderCert()">
-        <select id="ct-nivel" onchange="renderCert()"><option value="">Todos os níveis</option><option>N1</option><option>N2</option><option>WT1</option></select>
+        <select id="ct-nivel" onchange="renderCert()"><option value="">Todos os níveis</option><option value="N1">N1</option><option value="N2">N2</option><option value="WT1">WT1</option><option value="N1P">N1P · Paratriathlon</option></select>
         <select id="ct-turma" onchange="renderCert()"><option value="">Todas as turmas</option></select>
       </div>
       <div id="ct-resumo" class="muted" style="margin:-6px 0 10px"></div>
@@ -433,7 +433,8 @@ async function delRow(table, id, reload){
    Os dados vieram das planilhas da CBTri; turmas novas entram por
    "Registrar turma" (colar da planilha). */
 let CERT=[];
-const NIVEIS_CERT=['N1','N2','WT1'];
+const NIVEIS_CERT=['N1','N2','WT1','N1P'];
+const ROTULO_CERT={N1:'N1 · Nível 1 CBTri',N2:'N2 · Nível 2 CBTri',WT1:'WT1 · Nível 1 World Triathlon',N1P:'N1P · Nível 1 com habilitação em Paratriathlon'};
 const escA = s => esc(s).replace(/"/g,'&quot;');
 const emailOk = e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 function certFiltrados(){
@@ -478,7 +479,7 @@ function editCert(id){
     <label>E-mail (o usado no curso)</label><input id="ce-email" type="email" value="${escA(c.email)}">
     <label>CREF</label><input id="ce-cref" value="${escA(c.cref)}">
     <div style="display:grid;grid-template-columns:1fr 2fr 1fr;gap:10px">
-      <div><label>Nível</label><select id="ce-nivel">${NIVEIS_CERT.map(n=>`<option ${n===c.nivel?'selected':''}>${n}</option>`).join('')}</select></div>
+      <div><label>Nível</label><select id="ce-nivel">${NIVEIS_CERT.map(n=>`<option value="${n}" ${n===c.nivel?'selected':''}>${ROTULO_CERT[n]}</option>`).join('')}</select></div>
       <div><label>Turma</label><input id="ce-turma" value="${escA(c.turma)}" placeholder="ex.: N1 Novembro 2025"></div>
       <div><label>Ano</label><input id="ce-ano" type="number" value="${escA(c.ano)}"></div>
     </div>`, async ()=>{
@@ -512,7 +513,7 @@ function lerLinhasTurma(texto){
 function registrarTurma(){
   openDlg('Registrar turma', `
     <div style="display:grid;grid-template-columns:1fr 2fr 1fr;gap:10px">
-      <div><label>Nível</label><select id="rt-nivel">${NIVEIS_CERT.map(n=>`<option>${n}</option>`).join('')}</select></div>
+      <div><label>Nível</label><select id="rt-nivel">${NIVEIS_CERT.map(n=>`<option value="${n}">${ROTULO_CERT[n]}</option>`).join('')}</select></div>
       <div><label>Turma</label><input id="rt-turma" placeholder="ex.: Novembro 2025"></div>
       <div><label>Ano</label><input id="rt-ano" type="number" value="${new Date().getFullYear()}"></div>
     </div>
