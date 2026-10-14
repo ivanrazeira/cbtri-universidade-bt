@@ -68,6 +68,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;color:var(--text)
 .btn-top.acesso:hover{background:rgba(255,255,255,.14)}
 .btn-top.acesso.treinador{background:rgba(250,204,21,.16);border-color:rgba(250,204,21,.6)}
 .btn-top.acesso.treinador:hover{background:rgba(250,204,21,.28)}
+.btn-top.acesso.sso{font-family:inherit;cursor:pointer}
 .topbar-sep{width:1px;height:22px;background:rgba(255,255,255,.2);margin:0 2px}
 @media(max-width:1100px){.topbar-brand .brand-sub{display:none}}
 @media(max-width:900px){.btn-top.navegacao,.topbar-sep{display:none}.topbar-brand .brand-name{font-size:13px}.btn-top.acesso:not(.treinador) .rotulo{display:none}.btn-top.acesso:not(.treinador){padding:7px 10px;font-size:15px}}
@@ -638,6 +639,7 @@ tbody td{padding:13px 16px;font-size:13px;color:var(--text)}
   <div class="topbar-actions">
     <!-- Acessos: treinador (Plataforma Brasil Triathlon), facilitador e equipe CBTri.
          No celular viram só ícone; Calendário e Ver Cursos ficam no menu lateral. -->
+    <span data-sso></span>
     <a class="btn-top acesso treinador" href="https://plataforma.triathlonbrasil.org.br/treinador/login" title="Área do Treinador — Plataforma Brasil Triathlon" aria-label="Área do Treinador"><span aria-hidden="true">🏅</span><span class="rotulo"> Área do Treinador</span></a>
     <a class="btn-top acesso" href="/facilitador" title="Acesso do facilitador" aria-label="Facilitador"><span aria-hidden="true">🎓</span><span class="rotulo"> Facilitador</span></a>
     <a class="btn-top acesso" href="/admin" title="Acesso da equipe CBTri" aria-label="Administrativo"><span aria-hidden="true">🔒</span><span class="rotulo"> Administrativo</span></a>
@@ -959,6 +961,7 @@ tbody td{padding:13px 16px;font-size:13px;color:var(--text)}
 </main>
 
 <!-- Cliente Supabase (conteúdo dinâmico). Se não carregar, a página usa os dados locais abaixo. -->
+<script src="/assets/sso.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ============================================================

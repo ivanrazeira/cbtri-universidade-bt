@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Minha área · Brasil Triathlon Academy</title>
+<style>
+:root{--navy:#0b2b27;--teal:#159a8c;--gold:#facc15;--gray-50:#f6f8f8;--gray-100:#eef2f2;--gray-200:#e3e8e8;--radius:12px}
+*{box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;margin:0;background:var(--gray-50);color:var(--navy)}
+.wrap{max-width:760px;margin:0 auto;padding:20px 16px 40px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.top a.marca{color:var(--navy);text-decoration:none;font-weight:800}
+.muted{color:#66787a}
+h1{font-size:22px;margin:0 0 4px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.4px;color:#66787a;margin:0 0 10px}
+.card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:18px;margin-bottom:14px}
+.perfil{display:flex;gap:14px;align-items:center}
+.foto{width:64px;height:64px;border-radius:50%;object-fit:cover;border:1px solid var(--gray-200);flex-shrink:0}
+.inicial{width:64px;height:64px;border-radius:50%;background:var(--gray-100);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:#66787a;flex-shrink:0}
+.btn{display:inline-block;border:none;border-radius:8px;padding:10px 16px;font-weight:600;font-size:14px;cursor:pointer;background:var(--teal);color:#fff;text-decoration:none}
+.btn-ghost{background:var(--gray-100);color:var(--navy)}
+.btn-ouro{background:var(--gold);color:#0b1f3a}
+.acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.cert{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-100);font-size:14px}
+.cert:last-child{border-bottom:none}
+.selo{font-weight:700}
+.aviso{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:10px 12px;font-size:14px}
+.chip{display:inline-block;background:var(--gray-100);border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600;margin:2px 4px 0 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <a class="marca" href="/">← Brasil Triathlon Academy</a>
+    <span id="sair"></span>
+  </div>
+  <div id="conteudo"></div>
+</div>
+<script src="/assets/sso.js"></script>
+<script>
+(function () {
+  var S = UBT_SSO, esc = S.esc, P = S.CFG.PLATAFORMA;
+  var ROTULO = { N1: "Nível 1 CBTri", N2: "Nível 2 CBTri", WT1: "Nível 1 World Triathlon" };
+  var el = document.getElementById("conteudo");
+  var s = S.sessao();
+
+  if (!s) {
+    el.innerHTML =
+      '<div class="card"><h1>Minha área</h1>' +
+      '<p class="muted">Entre com a mesma conta da Plataforma Brasil Triathlon (a do Portal do Triatleta ou da Área do Treinador). ' +
+      'Não precisa criar outra senha.</p>' +
+      '<div class="acoes"><button class="btn" id="entrar">🔑 Entrar com a conta Brasil Triathlon</button></div>' +
+      '<p class="muted" style="font-size:13px;margin-top:14px">Ainda não tem conta? ' +
+      '<a href="' + P + '/treinador/cadastro">Crie na plataforma</a>.</p></div>';
+    document.getElementById("entrar").onclick = function () { S.entrar("/minha-area"); };
+    return;
+  }
+
+  var b = document.createElement("button");
+  b.className = "btn btn-ghost"; b.textContent = "Sair";
+  b.onclick = function () { S.sair("/"); };
+  document.getElementById("sair").appendChild(b);
+
+  var t = s.treinador, h = "";
+  h += '<div class="card"><div class="perfil">' +
+    (t && t.foto_url ? '<img class="foto" src="' + esc(t.foto_url) + '" alt="">' : '<div class="inicial">' + esc((s.nome || "?").charAt(0)) + "</div>") +
+    '<div><h1>Olá, ' + esc(S.primeiroNome(s.nome)) + "</h1>" +
+    '<div class="muted" style="font-size:14px">' + esc(s.nome) + (s.email ? " · " + esc(s.email) : "") + "</div></div></div></div>";
+
+  // Certificações (fonte: o próprio Academy).
+  h += '<div class="card"><h2>Minhas certificações</h2>';
+  if (s.certificacoes === null) {
+    h += '<p class="muted">Não conseguimos consultar as certificações agora. Saia e entre de novo mais tarde.</p>';
+  } else if (!s.certificacoes || !s.certificacoes.length) {
+    h += '<p class="muted">Nenhuma certificação CBTri encontrada para o e-mail da sua conta.</p>' +
+      '<p class="muted" style="font-size:13px">Fez o curso com outro e-mail? Fale com a CBTri: secretaria@cbtri.org.br.</p>';
+  } else {
+    s.certificacoes.slice().sort(function (a, b) { return a.ano - b.ano; }).forEach(function (c) {
+      h += '<div class="cert"><span class="selo">🎓 ' + esc(ROTULO[c.nivel] || c.nivel) + "</span>" +
+        '<span class="muted">' + esc(c.turma || "") + " · " + esc(c.ano) + "</span></div>";
+    });
+  }
+  h += "</div>";
+
+  // Perfil de treinador (fonte: a plataforma).
+  h += '<div class="card"><h2>Área do Treinador</h2>';
+  if (t) {
+    h += '<p style="margin:0 0 6px"><strong>' + esc(t.nome) + "</strong>" +
+      (t.cidade || t.uf ? ' <span class="muted">· ' + esc([t.cidade, t.uf].filter(Boolean).join(" / ")) + "</span>" : "") + "</p>";
+    if (!t.ativo) h += '<p class="aviso">Seu perfil de treinador está desativado na plataforma. Fale com a CBTri.</p>';
+    if (t.equipes && t.equipes.length) h += "<div>" + t.equipes.map(function (e) { return '<span class="chip">' + esc(e.nome) + "</span>"; }).join("") + "</div>";
+    h += '<div class="acoes"><a class="btn btn-ouro" href="' + P + '/treinador/perfil">Editar meu perfil na plataforma</a>' +
+      '<a class="btn btn-ghost" href="' + P + '/treinadores">Vitrine de treinadores</a></div>';
+  } else {
+    h += '<p class="muted">Você ainda não ativou a Área do Treinador. É nela que você monta o perfil esportivo, aparece na vitrine ' +
+      "e se vincula aos seus triatletas e à sua equipe.</p>" +
+      '<div class="acoes"><a class="btn btn-ouro" href="' + P + '/treinador/login">Ativar a Área do Treinador</a></div>';
+  }
+  h += '</div><p class="muted" style="font-size:12px">Dados lidos da Plataforma Brasil Triathlon no momento em que você entrou. ' +
+    "Para atualizar, saia e entre de novo.</p>";
+  el.innerHTML = h;
+})();
+</script>
+</body>
+</html>

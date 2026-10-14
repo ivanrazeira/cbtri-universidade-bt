@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="referrer" content="no-referrer">
+<title>Entrando… · Brasil Triathlon Academy</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;margin:0;background:#f6f8f8;color:#0b2b27;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:16px}
+.card{background:#fff;border:1px solid #e3e8e8;border-radius:12px;padding:28px;max-width:420px;width:100%;text-align:center}
+.erro{color:#b42318}
+a,button{display:inline-block;margin-top:14px;border:none;border-radius:8px;padding:10px 16px;font-weight:600;font-size:14px;cursor:pointer;background:#159a8c;color:#fff;text-decoration:none}
+a.sec{background:#eef2f2;color:#0b2b27;margin-left:6px}
+</style>
+</head>
+<body>
+<div class="card" id="caixa">
+  <p><strong>Entrando com a conta Brasil Triathlon…</strong></p>
+</div>
+<script src="/assets/sso.js"></script>
+<script>
+(async function () {
+  var params = new URLSearchParams(location.search);
+  // Tira code/state da barra de endereço e do histórico já na chegada.
+  history.replaceState(null, "", "/sso/retorno");
+  try {
+    var destino = await UBT_SSO.concluir(params);
+    location.replace(destino);
+  } catch (e) {
+    var c = document.getElementById("caixa");
+    c.innerHTML = '<p class="erro"><strong>' + UBT_SSO.esc(e.message || "Não foi possível entrar.") + "</strong></p>";
+    var b = document.createElement("button"); b.textContent = "Tentar de novo";
+    b.onclick = function () { UBT_SSO.entrar("/minha-area"); };
+    var a = document.createElement("a"); a.className = "sec"; a.href = "/"; a.textContent = "Voltar ao Academy";
+    c.appendChild(b); c.appendChild(a);
+  }
+})();
+</script>
+</body>
+</html>
