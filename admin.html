@@ -94,6 +94,7 @@ window.UBT_CONFIG = {
       <div class="tab" data-tab="calendar" onclick="switchTab('calendar')">Calendário</div>
       <div class="tab" data-tab="faculty" onclick="switchTab('faculty')">Docentes</div>
       <div class="tab" data-tab="waitlist" onclick="switchTab('waitlist')">📋 Lista de espera</div>
+      <div class="tab" data-tab="certificados" onclick="switchTab('certificados')">🎓 Treinadores certificados</div>
       <div class="tab" data-tab="fluxo" onclick="switchTab('fluxo')">💰 Fluxo financeiro</div>
       <div class="tab" id="tab-acessos" data-tab="acessos" onclick="switchTab('acessos')" style="margin-left:auto">🔑 Acessos</div>
     </div>
@@ -129,6 +130,25 @@ window.UBT_CONFIG = {
         </div>
       </div>
       <div class="card"><table><thead><tr><th>Data</th><th>Curso</th><th>Origem</th><th>Nome</th><th>E-mail</th><th>WhatsApp</th><th></th></tr></thead><tbody id="tb-waitlist"></tbody></table></div>
+    </div>
+
+    <div id="pane-certificados" class="hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+        <h3 style="margin:0">Treinadores certificados <span id="ct-count" class="muted"></span></h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="registrarTurma()">+ Registrar turma</button>
+          <button class="btn btn-sm" style="background:var(--gray-100)" onclick="editCert(null)">+ Uma certificação</button>
+          <button class="btn btn-primary btn-sm" onclick="exportCertCsv()">⬇ Exportar CSV</button>
+        </div>
+      </div>
+      <div class="muted" style="margin-bottom:10px">Registro acadêmico de quem concluiu cada nível (N1, N2, WT1). O perfil esportivo do treinador fica na <b>Plataforma Brasil Triathlon</b>; quem está aqui pode ativar o pré-cadastro em <b>plataforma.triathlonbrasil.org.br/treinador/cadastro/certificado</b> com o e-mail e o CREF do curso.</div>
+      <div class="card" style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;padding:12px">
+        <input id="ct-busca" placeholder="Buscar por nome, e-mail ou CREF" oninput="renderCert()">
+        <select id="ct-nivel" onchange="renderCert()"><option value="">Todos os níveis</option><option>N1</option><option>N2</option><option>WT1</option></select>
+        <select id="ct-turma" onchange="renderCert()"><option value="">Todas as turmas</option></select>
+      </div>
+      <div id="ct-resumo" class="muted" style="margin:-6px 0 10px"></div>
+      <div class="card" style="overflow-x:auto"><table><thead><tr><th>Nome</th><th>E-mail</th><th>CREF</th><th>Nível</th><th>Turma</th><th></th></tr></thead><tbody id="tb-cert"></tbody></table></div>
     </div>
 
     <div id="pane-fluxo" class="hidden">
@@ -207,7 +227,7 @@ async function showApp(session){
   if(banner) banner.classList.toggle('hidden', isAdmin);
   const tabAcessos = $('#tab-acessos');
   if(tabAcessos) tabAcessos.classList.toggle('hidden', !isAdmin);  // só admin gerencia acessos
-  loadCourses(); loadCalendar(); loadFaculty(); loadWaitlist(); loadFluxo();
+  loadCourses(); loadCalendar(); loadFaculty(); loadWaitlist(); loadCert(); loadFluxo();
   if(isAdmin) loadAcessos();
 }
 async function doLogin(){
@@ -221,7 +241,7 @@ $('#l-pass')&&$('#l-pass').addEventListener('keydown',e=>{ if(e.key==='Enter') d
 
 /* ---------- TABS ---------- */
 function switchTab(t){
-  ['courses','calendar','faculty','waitlist','fluxo','acessos'].forEach(x=>{
+  ['courses','calendar','faculty','waitlist','certificados','fluxo','acessos'].forEach(x=>{
     $('#pane-'+x).classList.toggle('hidden', x!==t);
     document.querySelector(`.tab[data-tab="${x}"]`).classList.toggle('active', x===t);
   });
@@ -406,6 +426,126 @@ async function delRow(table, id, reload){
   const { error } = await sb.from(table).delete().eq('id',id);
   if(error){ alert('Erro: '+error.message); return; }
   reload();
+}
+
+/* ================= TREINADORES CERTIFICADOS =================
+   Tabela ubt_certificacoes (migration 029): só a equipe (ubt_is_admin) lê.
+   Os dados vieram das planilhas da CBTri; turmas novas entram por
+   "Registrar turma" (colar da planilha). */
+let CERT=[];
+const NIVEIS_CERT=['N1','N2','WT1'];
+const escA = s => esc(s).replace(/"/g,'&quot;');
+const emailOk = e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+function certFiltrados(){
+  const q=($('#ct-busca').value||'').trim().toLowerCase();
+  const n=$('#ct-nivel').value, t=$('#ct-turma').value;
+  return CERT.filter(c=>(!n||c.nivel===n)&&(!t||c.turma===t)&&
+    (!q||[c.nome,c.email,c.cref].some(v=>String(v||'').toLowerCase().includes(q))));
+}
+async function loadCert(){
+  const tb=$('#tb-cert'); if(!tb) return;
+  const { data, error } = await sb.from('ubt_certificacoes').select('*').order('nome');
+  if(error){ tb.innerHTML=`<tr><td colspan="6"><div class="msg err">Não foi possível carregar: ${esc(error.message)}</div></td></tr>`; return; }
+  CERT=data||[];
+  const sel=$('#ct-turma'), cur=sel.value;
+  const turmas=[...new Set(CERT.map(c=>c.turma))].sort((a,b)=>{
+    const ya=(a.match(/\d{4}/)||[''])[0], yb=(b.match(/\d{4}/)||[''])[0];
+    return ya===yb ? a.localeCompare(b,'pt-BR') : ya.localeCompare(yb);
+  });
+  sel.innerHTML='<option value="">Todas as turmas</option>'+turmas.map(t=>`<option value="${escA(t)}">${esc(t)}</option>`).join('');
+  sel.value=cur;
+  renderCert();
+}
+function renderCert(){
+  const tb=$('#tb-cert'); if(!tb) return;
+  const rows=certFiltrados();
+  const pessoas=new Set(rows.map(c=>c.email)).size;
+  $('#ct-count').textContent = rows.length ? `· ${pessoas} pessoa(s), ${rows.length} certificação(ões)` : '';
+  const porNivel=NIVEIS_CERT.map(n=>`${n}: ${rows.filter(c=>c.nivel===n).length}`).join(' · ');
+  $('#ct-resumo').textContent = rows.length ? porNivel : '';
+  tb.innerHTML = rows.map(c=>`<tr>
+    <td><b>${esc(c.nome)}</b></td><td>${esc(c.email)}</td><td>${esc(c.cref)||'—'}</td>
+    <td><span class="pill done">${esc(c.nivel)}</span></td><td style="white-space:nowrap">${esc(c.turma)}</td>
+    <td class="row-actions" style="white-space:nowrap">
+      <button class="btn btn-sm" style="background:var(--gray-100)" onclick="editCert('${escA(c.id)}')">Editar</button>
+      <button class="btn btn-sm btn-danger" onclick="delRow('ubt_certificacoes','${escA(c.id)}',loadCert)">Remover</button></td></tr>`
+  ).join('') || '<tr><td colspan="6" class="muted">Nenhuma certificação.</td></tr>';
+}
+function editCert(id){
+  const c = CERT.find(x=>x.id===id) || { nome:'', email:'', cref:'', nivel:'N1', turma:'', ano:new Date().getFullYear() };
+  openDlg(id?'Editar certificação':'Nova certificação', `
+    <label>Nome completo</label><input id="ce-nome" value="${escA(c.nome)}">
+    <label>E-mail (o usado no curso)</label><input id="ce-email" type="email" value="${escA(c.email)}">
+    <label>CREF</label><input id="ce-cref" value="${escA(c.cref)}">
+    <div style="display:grid;grid-template-columns:1fr 2fr 1fr;gap:10px">
+      <div><label>Nível</label><select id="ce-nivel">${NIVEIS_CERT.map(n=>`<option ${n===c.nivel?'selected':''}>${n}</option>`).join('')}</select></div>
+      <div><label>Turma</label><input id="ce-turma" value="${escA(c.turma)}" placeholder="ex.: N1 Novembro 2025"></div>
+      <div><label>Ano</label><input id="ce-ano" type="number" value="${escA(c.ano)}"></div>
+    </div>`, async ()=>{
+    const reg = { nome:$('#ce-nome').value.trim().replace(/\s+/g,' '), email:$('#ce-email').value.trim().toLowerCase(),
+      cref:$('#ce-cref').value.trim()||null, nivel:$('#ce-nivel').value, turma:$('#ce-turma').value.trim(), ano:Number($('#ce-ano').value) };
+    if(reg.nome.length<3) throw new Error('Informe o nome.');
+    if(!emailOk(reg.email)) throw new Error('E-mail inválido.');
+    if(!reg.turma) throw new Error('Informe a turma.');
+    const { error } = id ? await sb.from('ubt_certificacoes').update(reg).eq('id',id)
+                         : await sb.from('ubt_certificacoes').insert(reg);
+    if(error) throw new Error(error.code==='23505' ? 'Essa pessoa já tem essa certificação nessa turma.' : error.message);
+    dlg.close(); loadCert();
+  });
+}
+/* Colar da planilha: uma pessoa por linha — Nome, E-mail e CREF, separados por
+   TAB (cópia direta do Excel), ponto e vírgula ou vírgula. Duplicadas são ignoradas. */
+function lerLinhasTurma(texto){
+  const ok=[], ruins=[];
+  texto.split(/\r?\n/).map(l=>l.trim()).filter(Boolean).forEach((l,i)=>{
+    const p=l.split(l.includes('\t')?'\t':(l.includes(';')?';':',')).map(x=>x.trim());
+    const email=(p.find(x=>x.includes('@'))||'').toLowerCase().replace(/[,;]+$/,'');
+    const nome=(p[0]||'').replace(/\s+/g,' ');
+    // CREF tem ao menos 3 dígitos — a coluna "Nível" (1, 2) das planilhas não é CREF.
+    const cref=p.find((x,j)=>j>0 && !x.includes('@') && (x.match(/\d/g)||[]).length>=3)||null;
+    if(/^nome/i.test(nome)) return;                       // cabeçalho colado junto
+    if(nome.length<3 || !emailOk(email)) { ruins.push(i+1); return; }
+    ok.push({ nome, email, cref });
+  });
+  return { ok, ruins };
+}
+function registrarTurma(){
+  openDlg('Registrar turma', `
+    <div style="display:grid;grid-template-columns:1fr 2fr 1fr;gap:10px">
+      <div><label>Nível</label><select id="rt-nivel">${NIVEIS_CERT.map(n=>`<option>${n}</option>`).join('')}</select></div>
+      <div><label>Turma</label><input id="rt-turma" placeholder="ex.: Novembro 2025"></div>
+      <div><label>Ano</label><input id="rt-ano" type="number" value="${new Date().getFullYear()}"></div>
+    </div>
+    <label>Cole as linhas da planilha (Nome · E-mail · CREF)</label>
+    <textarea id="rt-linhas" rows="10" placeholder="Fulana de Tal	fulana@email.com	012345-G/SP" oninput="previaTurma()"></textarea>
+    <div id="rt-previa" class="muted" style="margin-top:6px"></div>`, async ()=>{
+    const nivel=$('#rt-nivel').value;
+    let turma=$('#rt-turma').value.trim();
+    if(!turma) throw new Error('Informe a turma.');
+    // O ano escrito na turma ("Novembro 2025") prevalece sobre o campo Ano.
+    const ano=Number((turma.match(/\b(20\d{2})\b/)||[])[1] || $('#rt-ano').value);
+    if(!turma.startsWith(nivel+' ')) turma = `${nivel} ${turma}`;
+    const { ok, ruins } = lerLinhasTurma($('#rt-linhas').value);
+    if(!ok.length) throw new Error('Nenhuma linha válida.');
+    const regs = ok.map(r=>({ ...r, nivel, turma, ano, origem:'admin_academy' }));
+    const { error } = await sb.from('ubt_certificacoes').upsert(regs, { onConflict:'email,nivel,turma', ignoreDuplicates:true });
+    if(error) throw new Error(error.message);
+    dlg.close(); await loadCert();
+    alert(`${ok.length} certificação(ões) registradas em "${turma}".` + (ruins.length?`\nLinhas ignoradas (sem nome ou e-mail válido): ${ruins.join(', ')}.`:''));
+  });
+}
+function previaTurma(){
+  const { ok, ruins } = lerLinhasTurma($('#rt-linhas').value);
+  $('#rt-previa').textContent = `${ok.length} linha(s) válida(s)` + (ruins.length?` · ignoradas: ${ruins.join(', ')}`:'');
+}
+function exportCertCsv(){
+  const rows=certFiltrados();
+  if(!rows.length){ alert('Nada para exportar.'); return; }
+  const head=['Nome','Email','CREF','Nível','Turma','Ano'];
+  const data=rows.map(c=>[c.nome,c.email,c.cref||'',c.nivel,c.turma,c.ano]);
+  const csv=[head,...data].map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='treinadores-certificados.csv'; a.click(); URL.revokeObjectURL(a.href);
 }
 
 /* ================= LISTA DE ESPERA ================= */
