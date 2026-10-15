@@ -75,7 +75,7 @@ h2{font-size:13px;text-transform:uppercase;letter-spacing:.4px;color:#66787a;mar
     h += '<p class="muted">Não conseguimos consultar as certificações agora. Saia e entre de novo mais tarde.</p>';
   } else if (!s.certificacoes || !s.certificacoes.length) {
     h += '<p class="muted">Nenhuma certificação CBTri encontrada para o e-mail da sua conta.</p>' +
-      '<p class="muted" style="font-size:13px">Fez o curso com outro e-mail? Fale com a CBTri: secretaria@cbtri.org.br.</p>';
+      '<p class="muted" style="font-size:13px">Fez o curso com outro e-mail? Fale com a CBTri: triathlonbrasil@cbtri.org.br.</p>';
   } else {
     s.certificacoes.slice().sort(function (a, b) { return a.ano - b.ano; }).forEach(function (c) {
       h += '<div class="cert"><span class="selo">🎓 ' + esc(ROTULO[c.nivel] || c.nivel) + "</span>" +
