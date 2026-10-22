@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Aula Demonstrativa Gratuita · Ciência da Carga Interna — Brasil Triathlon Academy</title>
-<meta name="description" content="Aula demonstrativa gratuita de 30 min com o Prof. Marcio Lazari sobre os conceitos do monitoramento de carga. 21/08 às 19h. Cadastre-se e entre no grupo.">
+<title>LIVE Gratuita · Ciência da Carga Interna — Brasil Triathlon Academy</title>
+<meta name="description" content="LIVE gratuita ao vivo no Google Meet com Rogério Scheibe e o Prof. Marcio Lazari — 27/10 às 19h. Cadastre-se, entre no grupo e garanta sua vaga no curso (Turmas 1 e 2).">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{--teal-d:#083f39;--teal:#0e6b60;--teal-l:#14887a;--gold:#f5b301;--gold-d:#d99a00;--white:#fff;--ink:#0b2b27;--muted:#5b7a75}
@@ -55,6 +55,13 @@ input:focus{outline:none;border-color:var(--teal-l);box-shadow:0 0 0 3px rgba(20
 .bonus .txt{font-size:13.5px;color:rgba(255,255,255,.92);margin-top:3px}
 .bonus .txt b{color:var(--gold)}
 .hidden{display:none}
+.turma{border:1px solid #cfe0dd;border-radius:12px;padding:12px 14px;margin-top:10px}
+.turma-open{border-color:var(--gold-d);background:rgba(245,179,1,.08)}
+.turma-h{font-size:14px;font-weight:800;color:var(--teal-d);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.turma-d{font-size:13px;color:var(--ink);margin-top:3px}
+.turma-tag{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;padding:2px 8px;border-radius:999px;background:#e3ecea;color:#5b7a75}
+.turma-tag.open{background:var(--gold);color:#3a2a00}
+.specs{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:11.5px;color:var(--muted);margin-top:12px}
 .foot{text-align:center;font-size:11px;color:rgba(255,255,255,.6);margin-top:22px}
 </style>
 </head>
@@ -69,11 +76,12 @@ input:focus{outline:none;border-color:var(--teal-l);box-shadow:0 0 0 3px rgba(20
     <div class="k">Curso Ciência da</div>
     <h1><span>Carga Interna</span></h1>
     <div class="sub">Monitoramento fisiológico aplicado ao triathlon</div>
-    <div class="pill">🎥 Aula Demonstrativa · Grátis · 30 min</div>
-    <div class="when"><span>21 AGO</span><span class="plus">✚</span><span>19H</span></div>
+    <div class="pill">🎥 LIVE Gratuita · ao vivo no Google Meet</div>
+    <div class="when"><span>27 OUT</span><span class="plus">✚</span><span>19H</span></div>
+    <div class="sub" style="margin-top:4px;font-weight:600;opacity:.9">terça-feira · horário de Brasília</div>
   </div>
 
-  <p class="hook">Você coleta HRV, potência e TSS… mas sabe transformar isso em <b>decisão de treino</b>? Descubra nesta <b>aula demonstrativa gratuita de 30 min</b> com o Prof. Marcio Lazari.</p>
+  <p class="hook">Você coleta HRV, potência e TSS… mas sabe transformar isso em <b>decisão de treino</b>? Descubra nesta <b>LIVE gratuita</b> com <b>Rogério Scheibe</b> e o <b>Prof. Marcio Lazari</b> — e garanta sua vaga na próxima turma do curso.</p>
 
   <ul class="benefits">
     <li>Carga interna vs. externa — e a lógica por trás de cada métrica</li>
@@ -85,21 +93,21 @@ input:focus{outline:none;border-color:var(--teal-l);box-shadow:0 0 0 3px rgba(20
   <div class="author">
     <img src="https://edbyrcyvlowcylljebmq.supabase.co/storage/v1/object/public/ubt/facilitadores/marcio-lazari.jpg" alt="Marcio Lazari" onerror="this.style.display='none'">
     <div>
-      <div class="n">Com o Prof. Marcio Lazari</div>
-      <div class="r">Ciências do Esporte / Endurance</div>
-      <div class="b">Mestre em Ciências do Esporte (FEF/Unicamp), especialista em Bioquímica do Exercício. Head de Preparação Física na Oxia. +700 treinadores atendidos em workshops.</div>
+      <div class="n">Com Rogério Scheibe e Prof. Marcio Lazari</div>
+      <div class="r">Coordenação CBTri · Ciências do Esporte / Endurance</div>
+      <div class="b">Marcio Lazari: Mestre em Ciências do Esporte (FEF/Unicamp), especialista em Bioquímica do Exercício, Head de Preparação Física na Oxia. +700 treinadores atendidos. Curso também com Dr. José Cruvinel Neto (Medicina do Esporte).</div>
     </div>
   </div>
 
   <div class="bonus">
     <div class="tag">🎁 Bônus exclusivo ao vivo</div>
-    <div class="txt">Quem participar da aula <b>ao vivo</b> ganha um bônus especial, revelado no final — <b>não fica na gravação</b>.</div>
+    <div class="txt">Quem participar da <b>LIVE ao vivo</b> ganha um bônus especial, revelado no final — <b>não fica na gravação</b>.</div>
   </div>
 
   <div class="card" id="cadastro">
     <div id="form-area">
-      <h2>Garanta sua vaga na aula — é grátis</h2>
-      <div class="lead">Cadastre-se e entre no grupo de WhatsApp para receber o <b>aquecimento</b> e o <b>link da aula</b>.</div>
+      <h2>Garanta sua vaga na LIVE — é grátis</h2>
+      <div class="lead">Cadastre-se e entre no grupo de WhatsApp para receber o <b>lembrete</b> e o <b>link da LIVE no Google Meet</b>.</div>
       <label for="nome">Nome completo</label>
       <input type="text" id="nome" autocomplete="name" placeholder="Seu nome">
       <label for="email">E-mail</label>
@@ -107,17 +115,38 @@ input:focus{outline:none;border-color:var(--teal-l);box-shadow:0 0 0 3px rgba(20
       <label for="tel">WhatsApp (com DDD)</label>
       <input type="tel" id="tel" autocomplete="tel" placeholder="(11) 99999-9999">
       <div id="msg"></div>
-      <button class="btn" id="btn" onclick="enviar()">QUERO PARTICIPAR DA AULA →</button>
-      <div class="note">21/08 às 19h · seus dados ficam apenas com a Brasil Triathlon Academy.</div>
+      <button class="btn" id="btn" onclick="enviar()">QUERO PARTICIPAR DA LIVE →</button>
+      <div class="note">27/10 (terça) às 19h · ao vivo no Google Meet · seus dados ficam apenas com a Brasil Triathlon Academy.</div>
     </div>
 
     <div id="success-area" class="success hidden">
       <div class="big">🎉</div>
       <h2>Cadastro confirmado!</h2>
-      <p>Falta um passo: entre no grupo de WhatsApp para receber o <b>aquecimento</b> e o <b>link da aula</b>.</p>
+      <p>Falta um passo: entre no grupo de WhatsApp para receber o <b>lembrete</b> e o <b>link da LIVE no Google Meet</b>.</p>
       <a class="btn btn-wa" id="wa-btn" href="https://chat.whatsapp.com/K329rQpHGQOEqke9EXr1dj?s=cl&p=i&ilr=4" target="_blank" rel="noopener">📲 Entrar no grupo do WhatsApp</a>
-      <div class="note">21/08 às 19h · com Prof. Marcio Lazari</div>
+      <div class="note">27/10 às 19h · com Rogério Scheibe e Prof. Marcio Lazari</div>
     </div>
+  </div>
+
+  <div class="card">
+    <h2>Já quer garantir sua vaga no curso?</h2>
+    <div class="lead">Curso completo <b>online</b> (Google Classroom) · certificado de <b>8 horas</b> · encontros das <b>18h às 20h</b> (Brasília).</div>
+
+    <div class="turma">
+      <div class="turma-h">Turma 1 <span class="turma-tag">em andamento</span></div>
+      <div class="turma-d">📅 23, 24, 30 e 31 de outubro de 2026</div>
+    </div>
+    <div class="turma turma-open">
+      <div class="turma-h">Turma 2 <span class="turma-tag open">inscrições abertas</span></div>
+      <div class="turma-d">📅 06, 07, 20 e 21 de novembro de 2026</div>
+    </div>
+
+    <div class="specs">
+      <span>⏱️ 8 horas</span><span>💻 Google Classroom (e-mail Gmail)</span><span>👥 Vagas limitadas: 30</span>
+    </div>
+
+    <a class="btn" href="https://www.ticketsports.com.br/e/CI%C3%8ANCIA-DA-CARGA-INTERNA-MONITORAMENTO-FISIOL%C3%93GICO-APLICADO-AO-TRIATHLON-88182" target="_blank" rel="noopener">INSCREVER NA TICKET SPORTS →</a>
+    <div class="note">Ministrado pelo Prof. Marcio Lazari e Dr. José Cruvinel Neto · certificado de 8h.</div>
   </div>
 
   <div class="foot">© 2026 Brasil Triathlon Academy · CBTri</div>
@@ -129,7 +158,7 @@ const SUPA_KEY = "sb_publishable_g-Hpp9Y3nIDRgva2nkSlcw_FiQTHkfs";
 const WA_GROUP = "https://chat.whatsapp.com/K329rQpHGQOEqke9EXr1dj?s=cl&p=i&ilr=4";
 const COURSE_ID = 6;
 const COURSE_TITLE = "Ciência da Carga Interna: monitoramento fisiológico aplicado ao triathlon";
-const ORIGEM = "Aula demonstrativa 21/08";
+const ORIGEM = "LIVE 27/10 (Turmas 1 e 2)";
 const sb = window.supabase ? window.supabase.createClient(SUPA_URL, SUPA_KEY) : null;
 
 async function enviar(){
