@@ -1394,10 +1394,13 @@ async function axCertificados(id){
   const {data:pp} = await sb.from('ubt_admins').select('nome,papeis');
   const holder = papel => { const h=(pp||[]).find(x=>(x.papeis||[]).includes(papel)); return h?h.nome:''; };
   const {data:bens} = await sb.from('ubt_acao_beneficiarios').select('nome,funcao_portaria').eq('acao_id',id);
+  // assinaturas digitalizadas conhecidas (por trecho do nome → arquivo em assets/cert/assinaturas/)
+  const FIRMAS = {'lazari':'assets/cert/assinaturas/marcio-lazari.png'};
+  const firmaDe = nome => { const k=(nome||'').toLowerCase(); for(const key in FIRMAS){ if(k.includes(key)) return FIRMAS[key]; } return ''; };
   // assinaturas = facilitadores da ação (+ coordenação), editáveis
-  let sigs = (bens||[]).map(b=>({nome:b.nome, cargo: b.funcao_portaria==='mediador'?'Coordenação · Brasil Triathlon Academy':'Facilitador'}));
-  if(!sigs.some(s=>/coorden/i.test(s.cargo))){ const co=holder('coordenacao'); if(co) sigs.push({nome:co,cargo:'Coordenação · Brasil Triathlon Academy'}); }
-  while(sigs.length<3) sigs.push({nome:'', cargo:'Facilitador'});
+  let sigs = (bens||[]).map(b=>({nome:b.nome, cargo: b.funcao_portaria==='mediador'?'Coordenação · Brasil Triathlon Academy':'Facilitador', img:firmaDe(b.nome)}));
+  if(!sigs.some(s=>/coorden/i.test(s.cargo))){ const co=holder('coordenacao'); if(co) sigs.push({nome:co,cargo:'Coordenação · Brasil Triathlon Academy',img:firmaDe(co)}); }
+  while(sigs.length<3) sigs.push({nome:'', cargo:'Facilitador', img:''});
   window.__ctSigs = sigs.slice(0,3);
   // separa título / subtítulo pelo ':' ou '—'
   const partes=(a.titulo||'').split(/\s*[:—]\s*/);
@@ -1420,7 +1423,7 @@ async function axCertificados(id){
     ${emit&&emit.length?`<div class="blk" style="font-weight:700;margin-top:12px">Já emitidos (${emit.length})</div>
       <div style="max-height:160px;overflow:auto;font-size:12.5px;margin-top:4px">${emit.map(c=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid var(--gray-100,#eef2f2)"><span>${esc(c.nome)} ${c.situacao==='revogado'?'<span style="color:var(--red)">(revogado)</span>':''}</span><a href="/certificado?cod=${esc(c.codigo)}" target="_blank">${esc(c.codigo)}</a></div>`).join('')}</div>`:''}
   `, async ()=>{
-    const assinaturas = (window.__ctSigs||[]).filter(s=>s.nome&&s.nome.trim()).map(s=>({nome:s.nome.trim(),cargo:s.cargo||''}));
+    const assinaturas = (window.__ctSigs||[]).filter(s=>s.nome&&s.nome.trim()).map(s=>({nome:s.nome.trim(),cargo:s.cargo||'',img:s.img||null}));
     const st=document.getElementById('ct-msg'); st.textContent='Emitindo...';
     const r = await fnCall({action:'emitir_certificados', fonte:'participacao', acao_id:id, base:location.origin,
       titulo:val('ct-titulo')||null, subtitulo:val('ct-sub')||null,
@@ -1429,7 +1432,7 @@ async function axCertificados(id){
     st.innerHTML = `<div class="msg" style="background:#e8f5ee;color:#166534;padding:8px;border-radius:6px">✓ ${r.emitidos} emitido(s) · ${r.ja_existiam} já existiam${r.sem_documento?` · ${r.sem_documento} sem CPF (ignorados)`:''}. Reabra para ver a lista e os links.</div>`;
   });
   const box=document.getElementById('ct-sigs');
-  if(box) box.innerHTML = window.__ctSigs.map((s,i)=>`<div style="display:grid;grid-template-columns:1.4fr 1fr;gap:6px;margin-bottom:6px"><input value="${esc(s.nome)}" placeholder="nome" onchange="window.__ctSigs[${i}].nome=this.value"><input value="${esc(s.cargo)}" placeholder="cargo" onchange="window.__ctSigs[${i}].cargo=this.value"></div>`).join('');
+  if(box) box.innerHTML = window.__ctSigs.map((s,i)=>`<div style="border:1px solid var(--gray-100,#eef2f2);border-radius:8px;padding:6px;margin-bottom:6px"><div style="display:grid;grid-template-columns:1.3fr .9fr;gap:6px;margin-bottom:6px"><input value="${esc(s.nome)}" placeholder="nome" onchange="window.__ctSigs[${i}].nome=this.value"><input value="${esc(s.cargo)}" placeholder="cargo" onchange="window.__ctSigs[${i}].cargo=this.value"></div><input value="${esc(s.img||'')}" placeholder="assinatura (arquivo em assets/cert/assinaturas/…)" onchange="window.__ctSigs[${i}].img=this.value" style="width:100%"></div>`).join('');
   const sv=document.getElementById('dlg-save'); if(sv) sv.textContent='Emitir certificados';
 }
 
