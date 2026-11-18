@@ -96,6 +96,7 @@ window.UBT_CONFIG = {
       <div class="tab" data-tab="waitlist" onclick="switchTab('waitlist')">📋 Lista de espera</div>
       <div class="tab" data-tab="certificados" onclick="switchTab('certificados')">🎓 Treinadores certificados</div>
       <div class="tab" data-tab="fluxo" onclick="switchTab('fluxo')">💰 Fluxo financeiro</div>
+      <div class="tab" data-tab="certemit" onclick="switchTab('certemit')">📜 Certificados emitidos</div>
       <div class="tab" id="tab-acessos" data-tab="acessos" onclick="switchTab('acessos')" style="margin-left:auto">🔑 Acessos</div>
     </div>
 
@@ -163,6 +164,15 @@ window.UBT_CONFIG = {
       <div id="fluxo-detalhe" class="hidden"></div>
     </div>
 
+    <div id="pane-certemit" class="hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+        <h3 style="margin:0">Certificados emitidos <span id="ce-count" class="muted"></span></h3>
+        <input id="ce-busca" placeholder="buscar por nome, código ou curso…" style="min-width:260px;padding:8px 11px;border:1px solid var(--gray-200,#e3e8e8);border-radius:8px" oninput="renderCertEmit()">
+      </div>
+      <div class="muted" style="margin-bottom:10px">Todos os certificados gerados (participação e nível). Clique para abrir o documento, validar, editar os dados ou revogar.</div>
+      <div class="card"><table><thead><tr><th>Código</th><th>Titular</th><th>Curso / nível</th><th>Emitido</th><th>Situação</th><th></th></tr></thead><tbody id="tb-certemit"></tbody></table></div>
+    </div>
+
     <div id="pane-acessos" class="hidden">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <h3 style="margin:0">Acessos ao painel</h3><button class="btn btn-primary btn-sm" onclick="editAcesso()">+ Novo acesso</button>
@@ -228,7 +238,7 @@ async function showApp(session){
   const tabAcessos = $('#tab-acessos');
   if(tabAcessos) tabAcessos.classList.toggle('hidden', !isAdmin);  // só admin gerencia acessos
   loadCourses(); loadCalendar(); loadFaculty(); loadWaitlist(); loadCert(); loadFluxo();
-  if(isAdmin) loadAcessos();
+  if(isAdmin){ loadAcessos(); loadCertEmit(); }
 }
 async function doLogin(){
   const email=$('#l-email').value.trim(), password=$('#l-pass').value;
@@ -241,7 +251,7 @@ $('#l-pass')&&$('#l-pass').addEventListener('keydown',e=>{ if(e.key==='Enter') d
 
 /* ---------- TABS ---------- */
 function switchTab(t){
-  ['courses','calendar','faculty','waitlist','certificados','fluxo','acessos'].forEach(x=>{
+  ['courses','calendar','faculty','waitlist','certificados','fluxo','certemit','acessos'].forEach(x=>{
     $('#pane-'+x).classList.toggle('hidden', x!==t);
     document.querySelector(`.tab[data-tab="${x}"]`).classList.toggle('active', x===t);
   });
@@ -1421,6 +1431,8 @@ async function axCertificados(id){
     <div id="ct-sigs"></div>
     <div id="ct-msg" style="margin-top:8px"></div>
     ${emit&&emit.length?`<div class="blk" style="font-weight:700;margin-top:12px">Já emitidos (${emit.length})</div>
+      <button type="button" class="btn btn-sm" style="background:var(--gray-100);margin:4px 0 6px" onclick="axReaplicarCert(${id})">🔄 Reaplicar dados e assinaturas aos já emitidos</button>
+      <div class="muted" style="font-size:12px;margin-bottom:4px">Use se emitiu antes de preencher período/assinaturas: atualiza o conteúdo dos certificados já gerados (o código e o QR permanecem).</div>
       <div style="max-height:160px;overflow:auto;font-size:12.5px;margin-top:4px">${emit.map(c=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid var(--gray-100,#eef2f2)"><span>${esc(c.nome)} ${c.situacao==='revogado'?'<span style="color:var(--red)">(revogado)</span>':''}</span><a href="/certificado?cod=${esc(c.codigo)}" target="_blank">${esc(c.codigo)}</a></div>`).join('')}</div>`:''}
   `, async ()=>{
     const assinaturas = (window.__ctSigs||[]).filter(s=>s.nome&&s.nome.trim()).map(s=>({nome:s.nome.trim(),cargo:s.cargo||'',img:s.img||null}));
@@ -1434,6 +1446,80 @@ async function axCertificados(id){
   const box=document.getElementById('ct-sigs');
   if(box) box.innerHTML = window.__ctSigs.map((s,i)=>`<div style="border:1px solid var(--gray-100,#eef2f2);border-radius:8px;padding:6px;margin-bottom:6px"><div style="display:grid;grid-template-columns:1.3fr .9fr;gap:6px;margin-bottom:6px"><input value="${esc(s.nome)}" placeholder="nome" onchange="window.__ctSigs[${i}].nome=this.value"><input value="${esc(s.cargo)}" placeholder="cargo" onchange="window.__ctSigs[${i}].cargo=this.value"></div><input value="${esc(s.img||'')}" placeholder="assinatura (arquivo em assets/cert/assinaturas/…)" onchange="window.__ctSigs[${i}].img=this.value" style="width:100%"></div>`).join('');
   const sv=document.getElementById('dlg-save'); if(sv) sv.textContent='Emitir certificados';
+}
+
+/* ---- gestão dos certificados emitidos ---- */
+async function sha256Hex(s){ const h=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return Array.from(new Uint8Array(h)).map(x=>x.toString(16).padStart(2,'0')).join(''); }
+let CERTS=[];
+async function loadCertEmit(){
+  const tb=$('#tb-certemit'); if(!tb) return;
+  const {data,error}=await sb.from('ubt_certificados').select('codigo,nome,tipo,situacao,emitido_em,campos,acao_id').order('emitido_em',{ascending:false});
+  if(error){ tb.innerHTML=`<tr><td colspan="6"><div class="msg err">${esc(error.message)}</div></td></tr>`; return; }
+  CERTS=data||[]; renderCertEmit();
+}
+function renderCertEmit(){
+  const tb=$('#tb-certemit'); if(!tb) return;
+  const q=(($('#ce-busca')||{}).value||'').toLowerCase().trim();
+  const cnt=$('#ce-count'); if(cnt) cnt.textContent = CERTS.length? '· '+CERTS.length : '';
+  const rows=CERTS.filter(c=>!q || (c.codigo+' '+(c.nome||'')+' '+((c.campos||{}).titulo||'')).toLowerCase().includes(q));
+  tb.innerHTML = rows.map(c=>{
+    const rev=c.situacao==='revogado';
+    return `<tr>
+      <td><a href="/certificado?cod=${esc(c.codigo)}" target="_blank">${esc(c.codigo)}</a></td>
+      <td>${esc(c.nome)}</td>
+      <td>${esc((c.campos||{}).titulo||'')}${c.tipo==='nivel'?' <span class="muted">· nível</span>':''}</td>
+      <td class="muted">${(''+c.emitido_em).slice(0,10)}</td>
+      <td>${rev?'<span style="color:var(--red,#e5484d);font-weight:700">revogado</span>':'<span style="color:#166534;font-weight:700">válido</span>'}</td>
+      <td class="row-actions">
+        <a class="btn btn-sm" style="background:var(--gray-100)" href="/certificado?cod=${esc(c.codigo)}" target="_blank">Ver</a>
+        <a class="btn btn-sm" style="background:var(--gray-100)" href="/validar?cod=${esc(c.codigo)}" target="_blank">Validar</a>
+        <button class="btn btn-sm" style="background:var(--gray-100)" onclick="editCert('${esc(c.codigo)}')">Editar</button>
+        ${rev?`<button class="btn btn-sm" style="background:var(--gray-100)" onclick="reativarCert('${esc(c.codigo)}')">Reativar</button>`:`<button class="btn btn-sm btn-danger" onclick="revogarCert('${esc(c.codigo)}')">Revogar</button>`}
+      </td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="muted">Nenhum certificado emitido ainda.</td></tr>';
+}
+async function revogarCert(codigo){
+  const motivo=prompt('Motivo da revogação do certificado '+codigo+' (opcional):'); if(motivo===null) return;
+  const {error}=await sb.from('ubt_certificados').update({situacao:'revogado',motivo_revogacao:motivo||null,revogado_em:new Date().toISOString(),revogado_por:ME.email}).eq('codigo',codigo);
+  if(error){ alert('Erro: '+error.message); return; } loadCertEmit();
+}
+async function reativarCert(codigo){
+  if(!confirm('Reativar o certificado '+codigo+'?')) return;
+  const {error}=await sb.from('ubt_certificados').update({situacao:'valido',motivo_revogacao:null,revogado_em:null,revogado_por:null}).eq('codigo',codigo);
+  if(error){ alert('Erro: '+error.message); return; } loadCertEmit();
+}
+function editCert(codigo){
+  const c=CERTS.find(x=>x.codigo===codigo); if(!c) return; const f=c.campos||{};
+  openDlg('Editar certificado · '+codigo, `
+    <label>Titular (nome)</label><input id="ec-nome" value="${esc(c.nome)}">
+    <div class="grid2"><div><label>Título</label><input id="ec-titulo" value="${esc(f.titulo||'')}"></div><div><label>Subtítulo</label><input id="ec-sub" value="${esc(f.subtitulo||'')}"></div></div>
+    <div class="grid2"><div><label>Período</label><input id="ec-periodo" value="${esc(f.periodo||'')}"></div><div><label>Carga horária</label><input id="ec-carga" value="${esc(f.carga||'')}"></div></div>
+    <div class="muted" style="margin-top:8px">Editar re-gera o snapshot e o hash; o código e o QR permanecem os mesmos.</div>
+  `, async ()=>{
+    const campos={...f, titulo:val('ec-titulo')||null, subtitulo:val('ec-sub')||null, periodo:val('ec-periodo')||null, carga:val('ec-carga')||null};
+    const nome=val('ec-nome').trim()||c.nome;
+    const hash=await sha256Hex(`${codigo}|${nome}|${JSON.stringify(campos)}`);
+    const {error}=await sb.from('ubt_certificados').update({nome,campos,hash_conteudo:hash}).eq('codigo',codigo);
+    if(error) throw error; dlg.close(); loadCertEmit();
+  });
+}
+// Reaplica os dados/assinaturas atuais do diálogo aos certificados já emitidos da ação
+async function axReaplicarCert(id){
+  const st=document.getElementById('ct-msg'); if(st) st.textContent='Reaplicando…';
+  const {data:a}=await sb.from('ubt_acoes').select('*').eq('id',id).single();
+  const assinaturas=(window.__ctSigs||[]).filter(s=>s.nome&&s.nome.trim()).map(s=>({nome:s.nome.trim(),cargo:s.cargo||'',img:s.img||null}));
+  const base={ tipo_texto:'de conclusão', categoria:'Curso livre', titulo:val('ct-titulo')||a.titulo, subtitulo:val('ct-sub')||null,
+    carga:val('ct-carga')||a.carga_horaria||null, periodo:val('ct-periodo')||null, modalidade:val('ct-modal')||a.formato||null, assinaturas };
+  const {data:certs}=await sb.from('ubt_certificados').select('id,codigo,nome,campos').eq('acao_id',id);
+  let n=0;
+  for(const c of (certs||[])){
+    const campos={...(c.campos||{}), ...base};
+    const hash=await sha256Hex(`${c.codigo}|${c.nome}|${JSON.stringify(campos)}`);
+    const {error}=await sb.from('ubt_certificados').update({campos,hash_conteudo:hash}).eq('id',c.id);
+    if(!error) n++;
+  }
+  if(st) st.innerHTML=`<div class="msg" style="background:#e8f5ee;color:#166534;padding:8px;border-radius:6px">🔄 ${n} certificado(s) atualizado(s) com os dados e assinaturas atuais.</div>`;
+  if(typeof loadCertEmit==='function') loadCertEmit();
 }
 
 boot();
