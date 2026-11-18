@@ -1405,7 +1405,7 @@ async function axCertificados(id){
   const holder = papel => { const h=(pp||[]).find(x=>(x.papeis||[]).includes(papel)); return h?h.nome:''; };
   const {data:bens} = await sb.from('ubt_acao_beneficiarios').select('nome,funcao_portaria').eq('acao_id',id);
   // assinaturas digitalizadas conhecidas (por trecho do nome → arquivo em assets/cert/assinaturas/)
-  const FIRMAS = {'lazari':'assets/cert/assinaturas/marcio-lazari.png','cruvinel':'assets/cert/assinaturas/jose-cruvinel.png'};
+  const FIRMAS = {'lazari':'assets/cert/assinaturas/marcio-lazari.png','cruvinel':'assets/cert/assinaturas/jose-cruvinel.png','scheibe':'assets/cert/assinaturas/rogerio-scheibe.png'};
   const firmaDe = nome => { const k=(nome||'').toLowerCase(); for(const key in FIRMAS){ if(k.includes(key)) return FIRMAS[key]; } return ''; };
   // assinaturas = facilitadores da ação (+ coordenação), editáveis
   let sigs = (bens||[]).map(b=>({nome:b.nome, cargo: b.funcao_portaria==='mediador'?'Coordenação · Brasil Triathlon Academy':'Facilitador', img:firmaDe(b.nome)}));
