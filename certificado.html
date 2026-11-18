@@ -58,7 +58,24 @@
   .patrobar{margin-top:5mm;display:flex;justify-content:center;align-items:center}
   .patrobar img{height:7.5mm;width:auto;max-width:100%;display:block}
   .revogado{position:absolute;top:50%;left:34%;right:4%;transform:rotate(-14deg);text-align:center;font-weight:900;font-size:52pt;letter-spacing:8px;color:rgba(197,48,48,.16);z-index:3;pointer-events:none}
-  @media print{ body{background:#fff} .bar{display:none} .folha{box-shadow:none;margin:0;max-width:none} @page{size:A4 landscape;margin:0} }
+  /* Verso */
+  .verso{display:flex;flex-direction:column}
+  .vhead{background:linear-gradient(120deg,var(--navy),var(--navy2) 60%,var(--blue));color:#fff;padding:9mm 15mm;display:flex;justify-content:space-between;align-items:center;position:relative}
+  .vhead::before{content:"";position:absolute;top:0;left:0;right:0;height:2mm;background:var(--cyan)}
+  .vhead .k{color:var(--cyan);display:block}
+  .vhead .vtitulo{font-size:20pt;font-weight:700;text-transform:uppercase;letter-spacing:-.01em;display:block}
+  .vhead .vlogos{display:flex;align-items:center;gap:7mm}
+  .vhead .vlogos img{height:15mm;width:auto;display:block}
+  .vgrid{flex:1;padding:8mm 15mm;display:grid;grid-template-columns:1fr 1fr;gap:8mm 14mm;align-content:center}
+  .vitem{display:flex;gap:6mm}
+  .vnum{font-size:26pt;font-weight:700;color:var(--cyan);line-height:1;flex:none}
+  .vititulo{font-size:13pt;font-weight:700;display:block}
+  .viconteudo{font-size:10.5pt;line-height:1.45;color:var(--gray2);display:block;margin-top:1mm}
+  .vfoot{padding:0 15mm 6mm;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8mm;align-items:end}
+  .vcol{padding-top:4mm;border-top:.2mm solid var(--line)}
+  .vcol .rot{font-size:7pt;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--blue);display:block;margin-bottom:2mm}
+  .vcol .v{font-size:9.5pt;line-height:1.5;display:block}
+  @media print{ body{background:#fff} .bar{display:none} .folha{box-shadow:none;margin:0;max-width:none} .verso{break-before:page;page-break-before:always} @page{size:A4 landscape;margin:0} }
   @media(max-width:800px){ .folha{width:100%;aspect-ratio:auto} .grid{grid-template-columns:1fr} h1{font-size:30pt} .nome{font-size:22pt} }
 </style>
 </head>
@@ -108,6 +125,29 @@ const COD = (params.get('cod')||params.get('codigo')||params.get('c')||'').trim(
   const qr = window.qrSvg(validarUrl, '19mm', 'QR de validação');
   const urlCurta = validarUrl.replace(/^https?:\/\//,'').replace(/\?.*$/,'');
 
+  // Verso: conteúdo programático do curso (se houver)
+  const programa = (Array.isArray(c.programa)?c.programa:[]).filter(p=>p && (p.titulo||p.conteudo));
+  const facilitadores = assinaturas.map(s=>s.nome).filter(Boolean);
+  const versoHtml = programa.length ? `
+  <div class="folha verso">
+    <div class="vhead">
+      <div><span class="k">Conteúdo programático</span><span class="vtitulo">${esc(titulo)}</span></div>
+      <div class="vlogos">
+        <img src="assets/cert/logo-academy.png" alt="Brasil Triathlon Academy" onerror="this.style.display='none'">
+        <img src="assets/cert/logo-horizontal-azul.png" alt="Brasil Triathlon" onerror="this.style.display='none'">
+      </div>
+    </div>
+    <div class="vgrid">
+      ${programa.map((p,i)=>`<div class="vitem"><span class="vnum">${i+1}</span><div>${p.titulo?`<span class="vititulo">${esc(p.titulo)}</span>`:''}${p.conteudo?`<span class="viconteudo">${esc(p.conteudo)}</span>`:''}</div></div>`).join('')}
+    </div>
+    <div class="vfoot">
+      <div class="vcol"><span class="rot">Facilitadores</span>${facilitadores.map(n=>`<span class="v">${esc(n)}</span>`).join('')||'<span class="v">—</span>'}</div>
+      <div class="vcol"><span class="rot">Realização</span><span class="v">${esc(periodo||'—')}${carga?` · ${esc(carga)}`:''}</span></div>
+      <div class="vcol"><span class="rot">Validação</span><span class="v">Código ${esc(data.codigo)}</span><span class="v">${esc(urlCurta)}/validar</span></div>
+    </div>
+    <div class="patrobar"><img src="assets/cert/regua-patrocinio.png" alt="Patrocínio Master" onerror="this.style.display='none'"></div>
+  </div>` : '';
+
   alvo.innerHTML = `
   <div class="folha">
     ${revogado?'<div class="revogado">REVOGADO</div>':''}
@@ -149,7 +189,7 @@ const COD = (params.get('cod')||params.get('codigo')||params.get('c')||'').trim(
         <div class="patrobar"><img src="assets/cert/regua-patrocinio.png" alt="Patrocínio Master: Loterias Caixa, Caixa, Governo do Brasil" onerror="this.style.display='none'"></div>
       </div>
     </div>
-  </div>`;
+  </div>${versoHtml}`;
   document.title = 'Certificado ' + data.codigo + ' · ' + data.nome;
 })();
 </script>

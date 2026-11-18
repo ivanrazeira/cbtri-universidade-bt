@@ -317,6 +317,8 @@ function editCourse(id){
     <label>Facilitadores (JSON — lista de {nome, papel, foto, lattes, bio:[]})</label>
     <textarea id="f-facilitadores" style="min-height:110px;font-family:monospace;font-size:12px" placeholder='[{"nome":"...","papel":"...","foto":"facilitadores/nome.jpg","lattes":"http...","bio":["..."]}]'>${esc(c.facilitadores? JSON.stringify(c.facilitadores,null,2):'')}</textarea>
     <div class="muted" style="margin-top:4px">A foto é o caminho no bucket (ex.: <code>facilitadores/nome.jpg</code>). Faça upload dela no Storage → pasta <code>facilitadores</code>.</div>
+    <label>Conteúdo programático (vai no verso do certificado) — 1 módulo por linha: <b>Título :: descrição</b></label>
+    <textarea id="f-programa" style="min-height:110px" placeholder="Fisiologia dos limiares :: VO₂máx, lactato, potência e velocidade crítica, CSS.&#10;Quantificar ao longo do tempo :: TSS, CTL, ATL, TSB, monotonia e ACWR.">${esc((c.programa||[]).map(p=>`${p.titulo||''} :: ${p.conteudo||''}`).join('\n'))}</textarea>
     <div class="checkline"><input type="checkbox" id="f-featured" ${c.featured?'checked':''}><label style="margin:0">Destaque na home</label></div>
     <div class="checkline"><input type="checkbox" id="f-intl" ${c.intl?'checked':''}><label style="margin:0">Certificação internacional</label></div>
     <div class="checkline"><input type="checkbox" id="f-ativo" ${c.ativo?'checked':''}><label style="margin:0">Ativo (visível no site)</label></div>
@@ -326,7 +328,9 @@ function editCourse(id){
     let facils=null; const ft=val('f-facilitadores').trim();
     if(ft){ try{ facils=JSON.parse(ft); }catch(e){ throw new Error('Facilitadores: JSON inválido — '+e.message); } }
     const pub = val('f-publico').split(',').map(x=>x.trim()).filter(Boolean);
+    const programa = val('f-programa').split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{ const i=l.indexOf('::'); return i>=0?{titulo:l.slice(0,i).trim(),conteudo:l.slice(i+2).trim()}:{titulo:l.trim(),conteudo:''}; });
     const rec = {
+      programa,
       title:val('f-title'), categoria:val('f-categoria')||null, status:val('f-status'), format:val('f-format')||null,
       vagas:numOrNull(val('f-vagas')), vagas_ocupadas:Number(val('f-vagasocup')||0),
       carga_horaria:val('f-carga')||null, descricao:val('f-desc')||null,
@@ -1399,6 +1403,13 @@ async function axAdvance(id, dir){
 }
 
 /* ================= CERTIFICADOS ================= */
+// conteúdo programático vindo da configuração do curso (por course_id ou pelo título)
+async function programaDoCurso(a){
+  if(a.course_id){ const {data:cur}=await sb.from('ubt_courses').select('programa').eq('id',a.course_id).maybeSingle(); if(cur&&Array.isArray(cur.programa)&&cur.programa.length) return cur.programa; }
+  const t=(a.titulo||'').split(/[:—]/)[0].trim();
+  if(t){ const {data:cur}=await sb.from('ubt_courses').select('programa').ilike('title', t+'%').limit(1); if(cur&&cur[0]&&Array.isArray(cur[0].programa)) return cur[0].programa; }
+  return [];
+}
 async function axCertificados(id){
   const {data:a} = await sb.from('ubt_acoes').select('*').eq('id',id).single();
   const {data:pp} = await sb.from('ubt_admins').select('nome,papeis');
@@ -1437,10 +1448,11 @@ async function axCertificados(id){
   `, async ()=>{
     const assinaturas = (window.__ctSigs||[]).filter(s=>s.nome&&s.nome.trim()).map(s=>({nome:s.nome.trim(),cargo:s.cargo||'',img:s.img||null}));
     const st=document.getElementById('ct-msg'); st.textContent='Emitindo...';
+    const programa = await programaDoCurso(a);
     const r = await fnCall({action:'emitir_certificados', fonte:'participacao', acao_id:id, base:location.origin,
       titulo:val('ct-titulo')||null, subtitulo:val('ct-sub')||null,
       data_conclusao:val('ct-data')||null, carga:val('ct-carga')||null, periodo:val('ct-periodo')||null,
-      modalidade:val('ct-modal')||null, assinaturas});
+      modalidade:val('ct-modal')||null, assinaturas, programa});
     st.innerHTML = `<div class="msg" style="background:#e8f5ee;color:#166534;padding:8px;border-radius:6px">✓ ${r.emitidos} emitido(s) · ${r.ja_existiam} já existiam${r.sem_documento?` · ${r.sem_documento} sem CPF (ignorados)`:''}. Reabra para ver a lista e os links.</div>`;
   });
   const box=document.getElementById('ct-sigs');
@@ -1508,8 +1520,9 @@ async function axReaplicarCert(id){
   const st=document.getElementById('ct-msg'); if(st) st.textContent='Reaplicando…';
   const {data:a}=await sb.from('ubt_acoes').select('*').eq('id',id).single();
   const assinaturas=(window.__ctSigs||[]).filter(s=>s.nome&&s.nome.trim()).map(s=>({nome:s.nome.trim(),cargo:s.cargo||'',img:s.img||null}));
+  const programa=await programaDoCurso(a);
   const base={ tipo_texto:'de conclusão', categoria:'Curso livre', titulo:val('ct-titulo')||a.titulo, subtitulo:val('ct-sub')||null,
-    carga:val('ct-carga')||a.carga_horaria||null, periodo:val('ct-periodo')||null, modalidade:val('ct-modal')||a.formato||null, assinaturas };
+    carga:val('ct-carga')||a.carga_horaria||null, periodo:val('ct-periodo')||null, modalidade:val('ct-modal')||a.formato||null, assinaturas, programa };
   const {data:certs}=await sb.from('ubt_certificados').select('id,codigo,nome,campos').eq('acao_id',id);
   let n=0;
   for(const c of (certs||[])){

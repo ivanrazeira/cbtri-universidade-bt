@@ -153,6 +153,7 @@ Deno.serve(async (req) => {
             periodo: body.periodo || null,
             modalidade: body.modalidade || acao.formato || null,
             assinaturas, base_legal: body.base_legal || null,
+            programa: Array.isArray(body.programa) ? body.programa : [],
           };
           await emitirUm({ tipo: "participacao", acao_id: body.acao_id, nome: p.nome, documento: p.documento, email: p.email }, campos, ano);
           emitidos++;
