@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meu certificado · Brasil Triathlon Academy</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{--navy:#0B1C33;--navy2:#12304F;--blue:#1D4E86;--cyan:#29A9E9;--gray-200:#e3e8e8;--ok:#166534;--okbg:#e8f5ee;--err:#c53030;--errbg:#fdecec}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:var(--navy);
+    background:radial-gradient(120% 60% at 50% 0%,#1D4E86 0%,#12304F 45%,#0B1C33 100%) fixed;min-height:100vh}
+  .wrap{max-width:560px;margin:0 auto;padding:28px 18px 50px}
+  .brand{text-align:center;color:#fff;margin-bottom:16px}
+  .brand img{height:88px}
+  .brand .t{font-weight:700;letter-spacing:.5px;font-size:13px;opacity:.9;margin-top:4px}
+  .card{background:#fff;border-radius:16px;padding:20px;box-shadow:0 20px 50px rgba(0,0,0,.28);margin-bottom:14px}
+  h1{font-size:19px;margin-bottom:6px}
+  .muted{color:#5B6F86;font-size:13.5px}
+  label{display:block;font-size:12px;font-weight:700;color:#445;margin:10px 0 4px}
+  input{width:100%;padding:11px 13px;border:1px solid var(--gray-200);border-radius:10px;font-size:15px}
+  .btn{width:100%;margin-top:14px;padding:12px;border:none;border-radius:10px;font-weight:700;font-size:15px;cursor:pointer;background:var(--blue);color:#fff}
+  .btn:disabled{opacity:.6}
+  .cert{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--gray-200);border-radius:12px;padding:12px 14px;margin-top:10px}
+  .cert .ti{font-weight:700;font-size:14px}
+  .cert .su{font-size:12px;color:#5B6F86}
+  .open{background:var(--blue);color:#fff;text-decoration:none;border-radius:8px;padding:8px 12px;font-weight:700;font-size:13px;white-space:nowrap}
+  .rev{color:var(--err);font-weight:700;font-size:12px}
+  .msg{padding:10px 12px;border-radius:10px;font-size:14px;margin-top:10px}
+  .msg.err{background:var(--errbg);color:var(--err)}
+  .foot{text-align:center;color:rgba(255,255,255,.75);font-size:12px;margin-top:8px}
+  a.volta{color:rgba(255,255,255,.85);font-size:13px;text-decoration:none}
+</style>
+</head>
+<body>
+<script>
+  window.UBT_CONFIG = { SUPABASE_URL:"https://edbyrcyvlowcylljebmq.supabase.co", SUPABASE_ANON_KEY:"sb_publishable_g-Hpp9Y3nIDRgva2nkSlcw_FiQTHkfs" };
+</script>
+<div class="wrap">
+  <div class="brand">
+    <img src="https://edbyrcyvlowcylljebmq.supabase.co/storage/v1/object/public/ubt/marca/logo-academy.png" alt="Brasil Triathlon Academy" onerror="this.style.display='none'">
+    <div class="t">BRASIL TRIATHLON ACADEMY · CBTri</div>
+  </div>
+
+  <div class="card">
+    <h1>Acesse seu certificado</h1>
+    <div class="muted">Informe o <b>CPF</b> e o <b>e-mail</b> usados na inscrição do curso. Você verá os certificados emitidos em seu nome e poderá baixá-los em PDF.</div>
+    <label for="cpf">CPF</label>
+    <input id="cpf" inputmode="numeric" placeholder="000.000.000-00" autocomplete="off">
+    <label for="email">E-mail</label>
+    <input id="email" type="email" placeholder="seu@email.com" autocomplete="email">
+    <button class="btn" id="btn" onclick="buscar()">Buscar meus certificados</button>
+    <div id="msg"></div>
+  </div>
+
+  <div id="lista"></div>
+  <div class="foot"><a class="volta" href="/">← voltar ao site</a></div>
+</div>
+
+<script>
+const cfg = window.UBT_CONFIG;
+const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = iso => { try{ return new Date(iso).toLocaleDateString('pt-BR'); }catch(e){ return ''; } };
+
+async function buscar(){
+  const cpf=(document.getElementById('cpf').value||'').replace(/\D/g,'');
+  const email=(document.getElementById('email').value||'').trim();
+  const msg=document.getElementById('msg'); const lista=document.getElementById('lista');
+  msg.innerHTML=''; lista.innerHTML='';
+  if(cpf.length<11 || !email){ msg.innerHTML='<div class="msg err">Preencha o CPF (11 dígitos) e o e-mail.</div>'; return; }
+  const btn=document.getElementById('btn'); btn.disabled=true; btn.textContent='Buscando…';
+  const { data, error } = await sb.rpc('ubt_cert_do_aluno', { p_cpf: cpf, p_email: email });
+  btn.disabled=false; btn.textContent='Buscar meus certificados';
+  if(error){ msg.innerHTML=`<div class="msg err">Erro: ${esc(error.message)}</div>`; return; }
+  const certs = Array.isArray(data)?data:[];
+  if(!certs.length){
+    lista.innerHTML=`<div class="card"><div class="muted">Nenhum certificado encontrado para esse <b>CPF + e-mail</b>.<br><br>Confira se são os mesmos dados usados na inscrição. Se o curso terminou há pouco, o certificado pode ainda não ter sido liberado — fale com a coordenação em <b>triathlonbrasil@cbtri.org.br</b>.</div></div>`;
+    return;
+  }
+  lista.innerHTML = `<div class="card"><div style="font-weight:700;margin-bottom:4px">Certificados encontrados (${certs.length})</div>` +
+    certs.map(c=>{
+      const rev=c.situacao==='revogado';
+      return `<div class="cert"><div><div class="ti">${esc(c.titulo||(c.tipo==='nivel'?'Certificação':'Certificado'))}</div><div class="su">${esc(c.nome)} · ${esc(c.codigo)} · ${fmt(c.emitido_em)}${rev?' · <span class="rev">revogado</span>':''}</div></div>${rev?'':`<a class="open" href="/certificado?cod=${esc(c.codigo)}" target="_blank" rel="noopener">Abrir / PDF</a>`}</div>`;
+    }).join('') + `</div>`;
+}
+document.getElementById('email').addEventListener('keydown',e=>{ if(e.key==='Enter') buscar(); });
+</script>
+</body>
+</html>
