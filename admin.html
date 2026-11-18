@@ -1405,9 +1405,13 @@ async function axAdvance(id, dir){
 /* ================= CERTIFICADOS ================= */
 // conteúdo programático vindo da configuração do curso (por course_id ou pelo título)
 async function programaDoCurso(a){
+  // 1) pelo course_id, se esse curso tiver programa
   if(a.course_id){ const {data:cur}=await sb.from('ubt_courses').select('programa').eq('id',a.course_id).maybeSingle(); if(cur&&Array.isArray(cur.programa)&&cur.programa.length) return cur.programa; }
+  // 2) por título — prefere o curso que TEM programa preenchido (há cursos homônimos)
   const t=(a.titulo||'').split(/[:—]/)[0].trim();
-  if(t){ const {data:cur}=await sb.from('ubt_courses').select('programa').ilike('title', t+'%').limit(1); if(cur&&cur[0]&&Array.isArray(cur[0].programa)) return cur[0].programa; }
+  if(t){ const {data:curs}=await sb.from('ubt_courses').select('programa').ilike('title', t+'%');
+    const comProg=(curs||[]).find(c=>Array.isArray(c.programa)&&c.programa.length); if(comProg) return comProg.programa;
+  }
   return [];
 }
 async function axCertificados(id){
