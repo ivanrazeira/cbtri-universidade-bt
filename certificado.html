@@ -8,120 +8,150 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="assets/cert/qrcode.js"></script>
 <style>
-  :root{--navy:#0b2b27;--teal:#0e6b60;--teal-d:#083f39;--gold:#b8860b;--gold-l:#f5b301;--ink:#14312c;--line:#d8c9a6}
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Georgia','Libre Baskerville',serif;color:var(--ink);background:#eef1f0}
-  .bar{max-width:1120px;margin:14px auto;display:flex;gap:10px;justify-content:flex-end;padding:0 16px;font-family:system-ui,Segoe UI,Arial,sans-serif}
-  .btn{border:none;border-radius:8px;padding:10px 16px;font-weight:700;font-size:14px;cursor:pointer;background:var(--teal);color:#fff;text-decoration:none;display:inline-block}
-  .btn.ghost{background:#fff;color:var(--teal);border:1px solid var(--teal)}
-  .msg{max-width:1120px;margin:40px auto;padding:0 16px;font-family:system-ui,Segoe UI,Arial,sans-serif;font-size:16px;color:#555;text-align:center}
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--navy:#0B1C33;--navy2:#12304F;--blue:#1D4E86;--cyan:#29A9E9;--ink:#0B1C33;--gray:#5B6F86;--gray2:#2A3B52;--line:#D5DEE8}
+  body{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:var(--ink);background:#e9edf1}
+  .bar{max-width:1140px;margin:14px auto;display:flex;gap:10px;justify-content:flex-end;padding:0 16px}
+  .btn{border:none;border-radius:8px;padding:10px 16px;font-weight:700;font-size:14px;cursor:pointer;background:var(--blue);color:#fff;text-decoration:none;display:inline-block}
+  .btn.ghost{background:#fff;color:var(--blue);border:1px solid var(--blue)}
+  .msg{max-width:1140px;margin:40px auto;padding:0 16px;font-size:16px;color:#555;text-align:center}
   /* Folha A4 paisagem */
-  .folha{width:297mm;max-width:1120px;min-height:210mm;margin:0 auto 40px;background:#fff;position:relative;
-    padding:22mm 24mm 16mm;box-shadow:0 20px 50px rgba(0,0,0,.18);border:1px solid #e6e6e6}
-  .folha::before{content:"";position:absolute;inset:7mm;border:2px solid var(--teal);border-radius:4px;pointer-events:none}
-  .folha::after{content:"";position:absolute;inset:9mm;border:1px solid var(--gold);border-radius:2px;pointer-events:none}
-  .wm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:.05;pointer-events:none}
-  .wm img{width:120mm}
-  .inner{position:relative;z-index:1;text-align:center}
-  .logo{height:92px;margin:0 auto 6px;display:block}
-  .kicker{font-family:system-ui,Segoe UI,Arial,sans-serif;letter-spacing:4px;text-transform:uppercase;font-size:12px;color:var(--teal);font-weight:700}
-  h1.cert{font-size:40px;letter-spacing:8px;color:var(--navy);margin:2px 0 2px;text-transform:uppercase}
-  .sub0{font-family:system-ui,Segoe UI,Arial,sans-serif;font-size:13px;color:#7a7161;margin-bottom:16px}
-  .certifica{font-size:16px;color:#4a4a44;margin-top:10px}
-  .nome{font-size:34px;color:var(--teal-d);margin:8px 0 4px;font-weight:700}
-  .rule{width:70%;max-width:560px;height:1px;background:var(--line);margin:4px auto 14px}
-  .frase{font-size:16px;line-height:1.7;max-width:840px;margin:0 auto;color:#3a3a34}
-  .frase b{color:var(--navy)}
-  .assinaturas{display:flex;justify-content:center;gap:48px;flex-wrap:wrap;margin-top:34px}
-  .sig{min-width:170px;text-align:center}
-  .sig .ln{border-top:1px solid #333;padding-top:6px;font-weight:700;font-size:14px;color:var(--navy)}
-  .sig .cg{font-family:system-ui,Segoe UI,Arial,sans-serif;font-size:11px;color:#777}
-  .rodape{position:absolute;left:24mm;right:24mm;bottom:14mm;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;z-index:1}
-  .valida{font-family:system-ui,Segoe UI,Arial,sans-serif;font-size:11px;color:#555;text-align:left;line-height:1.5}
-  .valida b{color:var(--navy);font-size:12px}
-  .qrbox{width:22mm;height:22mm;flex-shrink:0}
-  .qrbox svg{width:100%;height:100%;display:block}
-  .revogado-faixa{position:absolute;top:50%;left:0;right:0;transform:rotate(-16deg);text-align:center;
-    font-family:system-ui,Segoe UI,Arial,sans-serif;font-weight:900;font-size:60px;letter-spacing:10px;color:rgba(197,48,48,.22);z-index:2;pointer-events:none}
-  @media print{
-    body{background:#fff}
-    .bar{display:none}
-    .folha{box-shadow:none;border:none;margin:0;width:297mm;min-height:200mm}
-    @page{size:A4 landscape;margin:0}
-  }
+  .folha{width:297mm;max-width:1140px;aspect-ratio:297/210;margin:0 auto 40px;background:#fff;
+    box-shadow:0 20px 50px rgba(0,0,0,.2);overflow:hidden;position:relative;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .grid{height:100%;display:grid;grid-template-columns:31% 1fr}
+  /* Lateral */
+  .side{background:linear-gradient(165deg,var(--navy) 0%,var(--navy2) 55%,var(--blue) 100%);color:#fff;padding:13mm 11mm;display:flex;flex-direction:column;position:relative}
+  .side::before{content:"";position:absolute;top:0;left:0;right:0;height:2mm;background:var(--cyan)}
+  .side .logo{width:52%;height:auto;display:block}
+  .side .bloco{margin-top:auto;display:flex;flex-direction:column;gap:3mm}
+  .k{font-size:8pt;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan)}
+  .curso{font-size:19pt;font-weight:700;line-height:1.02;letter-spacing:-.01em;text-transform:uppercase}
+  .csub{font-size:9pt;line-height:1.4;color:#C6D5E5}
+  .meta{margin-top:9mm;display:flex;flex-direction:column;gap:4mm}
+  .meta .rot{font-size:7pt;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#9FB4CB}
+  .meta .val{font-size:10pt;font-weight:700}
+  .side .foot{margin-top:8mm;padding-top:5mm;border-top:.2mm solid rgba(255,255,255,.22)}
+  .side .foot img{width:62%;height:auto;display:block}
+  /* Corpo */
+  .corpo{padding:15mm 15mm 11mm 16mm;display:flex;flex-direction:column;background:#fff}
+  .kb{font-size:9pt;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--blue)}
+  h1{font-size:40pt;line-height:.95;font-weight:700;letter-spacing:-.02em;text-transform:uppercase}
+  .de{font-size:11pt;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--gray)}
+  .certificamos{font-size:11pt;color:var(--gray)}
+  .nome{font-size:28pt;font-weight:700;line-height:1.05;letter-spacing:-.015em;color:var(--navy);padding-bottom:3mm;border-bottom:.6mm solid var(--cyan)}
+  .frase{font-size:11.5pt;line-height:1.5;color:var(--gray2);max-width:150mm;text-wrap:pretty}
+  .frase strong{color:var(--navy)}
+  .sigs{margin-top:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:8mm}
+  .sig{display:flex;flex-direction:column;gap:1.2mm;padding-top:2.5mm;border-top:.3mm solid var(--navy)}
+  .sig .n{font-size:9.5pt;font-weight:700}
+  .sig .c{font-size:8pt;line-height:1.35;color:var(--gray)}
+  .valida{margin-top:9mm;display:flex;align-items:center;gap:5mm;padding-top:4mm;border-top:.2mm solid var(--line)}
+  .valida .qr{width:19mm;height:19mm;flex:none}
+  .valida .qr svg{width:100%;height:100%;display:block}
+  .valida .rot{font-size:7pt;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--gray)}
+  .valida .cod{font-size:11pt;font-weight:700;letter-spacing:.06em;color:var(--navy)}
+  .valida .url{font-size:7.5pt;color:var(--gray)}
+  .patro{display:flex;align-items:center;gap:3mm;margin-left:auto}
+  .patro img{height:9mm;width:auto;display:block}
+  .revogado{position:absolute;top:50%;left:34%;right:4%;transform:rotate(-14deg);text-align:center;font-weight:900;font-size:52pt;letter-spacing:8px;color:rgba(197,48,48,.16);z-index:3;pointer-events:none}
+  @media print{ body{background:#fff} .bar{display:none} .folha{box-shadow:none;margin:0;max-width:none} @page{size:A4 landscape;margin:0} }
+  @media(max-width:800px){ .folha{width:100%;aspect-ratio:auto} .grid{grid-template-columns:1fr} h1{font-size:30pt} .nome{font-size:22pt} }
 </style>
 </head>
 <body>
 <script>
-  window.UBT_CONFIG = {
-    SUPABASE_URL: "https://edbyrcyvlowcylljebmq.supabase.co",
-    SUPABASE_ANON_KEY: "sb_publishable_g-Hpp9Y3nIDRgva2nkSlcw_FiQTHkfs"
-  };
+  window.UBT_CONFIG = { SUPABASE_URL:"https://edbyrcyvlowcylljebmq.supabase.co", SUPABASE_ANON_KEY:"sb_publishable_g-Hpp9Y3nIDRgva2nkSlcw_FiQTHkfs" };
 </script>
 
 <div class="bar">
   <a class="btn ghost" id="lnk-validar" href="#" target="_blank" rel="noopener">🔎 Verificar autenticidade</a>
   <button class="btn" onclick="window.print()">⬇ Salvar como PDF</button>
 </div>
-
 <div id="alvo"></div>
 
 <script>
 const cfg = window.UBT_CONFIG;
 const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
-const LOGO = cfg.SUPABASE_URL + "/storage/v1/object/public/ubt/marca/logo-academy.png";
 const esc = s => (s==null?'':String(s)).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const params = new URLSearchParams(location.search);
-const COD = (params.get('cod')||params.get('codigo')||'').trim();
-
-function fmtDataEmissao(iso){ try{ return new Date(iso).toLocaleDateString('pt-BR'); }catch(e){ return ''; } }
+const COD = (params.get('cod')||params.get('codigo')||params.get('c')||'').trim();
 
 (async function(){
   const alvo = document.getElementById('alvo');
-  if(!COD){ alvo.innerHTML = '<div class="msg">Informe o código do certificado na URL: <b>?cod=BTA-2026-000001</b></div>'; return; }
+  if(!COD){ alvo.innerHTML='<div class="msg">Informe o código na URL: <b>?cod=BTA-2026-000001</b></div>'; return; }
   const { data, error } = await sb.rpc('ubt_cert_validar', { p_cod: COD });
-  if(error){ alvo.innerHTML = `<div class="msg">Não foi possível carregar o certificado.<br><small>${esc(error.message)}</small></div>`; return; }
-  if(!data){ alvo.innerHTML = `<div class="msg">Certificado <b>${esc(COD)}</b> não encontrado. Verifique o código.</div>`; return; }
+  if(error){ alvo.innerHTML=`<div class="msg">Não foi possível carregar o certificado.<br><small>${esc(error.message)}</small></div>`; return; }
+  if(!data){ alvo.innerHTML=`<div class="msg">Certificado <b>${esc(COD)}</b> não encontrado.</div>`; return; }
 
   const c = data.campos || {};
-  const validarUrl = (c.url_validacao) || (location.origin + '/validar?cod=' + encodeURIComponent(data.codigo));
+  const nivel = data.tipo === 'nivel';
+  const categoria = c.categoria || (nivel ? 'Formação de treinadores' : 'Curso livre');
+  const titulo = c.titulo || '';
+  const subtitulo = c.subtitulo || '';
+  const periodo = c.periodo || '';
+  const carga = c.carga || '';
+  const validarUrl = c.url_validacao || (location.origin + '/validar?cod=' + encodeURIComponent(data.codigo));
   document.getElementById('lnk-validar').href = validarUrl;
   const revogado = data.situacao === 'revogado';
 
-  const assinaturas = Array.isArray(c.assinaturas) ? c.assinaturas : [];
-  const sigsHtml = assinaturas.map(s=>`<div class="sig"><div class="ln">${esc(s.nome||'')}</div><div class="cg">${esc(s.cargo||'')}</div></div>`).join('');
+  const tituloCompleto = titulo + (subtitulo ? ' — ' + subtitulo : '');
+  const frase = c.frase_html || (`concluiu o ${esc(c.categoria_frase || (nivel?'curso de formação':'curso livre'))} <strong>${esc(tituloCompleto)}</strong>, promovido pela Brasil Triathlon Academy`
+    + (periodo?`, realizado em ${esc(periodo)}`:'') + (carga?`, com carga horária total de ${esc(carga)}`:'') + '.');
 
-  const qr = window.qrSvg(validarUrl, '22mm', 'QR de validação');
+  const assinaturas = (Array.isArray(c.assinaturas)?c.assinaturas:[]).slice(0,3);
+  const sigs = assinaturas.map(s=>`<div class="sig"><span class="n">${esc(s.nome||'')}</span><span class="c">${esc(s.cargo||'')}</span></div>`).join('');
+
+  const qr = window.qrSvg(validarUrl, '19mm', 'QR de validação');
+  const urlCurta = validarUrl.replace(/^https?:\/\//,'').replace(/\?.*$/,'');
 
   alvo.innerHTML = `
   <div class="folha">
-    <div class="wm"><img src="${LOGO}" alt="" onerror="this.style.display='none'"></div>
-    ${revogado?'<div class="revogado-faixa">REVOGADO</div>':''}
-    <div class="inner">
-      <img class="logo" src="${LOGO}" alt="Brasil Triathlon Academy" onerror="this.style.display='none'">
-      <div class="kicker">Brasil Triathlon Academy · CBTri</div>
-      <h1 class="cert">Certificado</h1>
-      <div class="sub0">${esc(c.tipo_texto || (data.tipo==='nivel'?'Certificação de Treinador':'Participação em curso'))}</div>
-
-      <p class="certifica">A Confederação Brasileira de Triathlon, por meio da Brasil Triathlon Academy, certifica que</p>
-      <div class="nome">${esc(data.nome)}</div>
-      <div class="rule"></div>
-      <p class="frase">${esc(c.frase || 'concluiu o curso')} <b>${esc(c.titulo||'')}</b>${c.subtitulo?` — ${esc(c.subtitulo)}`:''}${c.carga?`, com carga horária de <b>${esc(c.carga)}</b>`:''}${c.periodo?`, realizado em <b>${esc(c.periodo)}</b>`:''}${c.modalidade?` (${esc(c.modalidade)})`:''}.${c.base_legal?`<br><small style="color:#8a8a82">${esc(c.base_legal)}</small>`:''}</p>
-
-      <div class="assinaturas">${sigsHtml}</div>
-    </div>
-    <div class="rodape">
-      <div class="valida">
-        <b>${esc(data.codigo)}</b> · emitido em ${fmtDataEmissao(data.emitido_em)}<br>
-        Confira a autenticidade em<br>${esc(validarUrl.replace(/^https?:\/\//,''))}
-        ${revogado?`<br><span style="color:#c53030;font-weight:700">⛔ Certificado revogado${c0(data.motivo_revogacao)}</span>`:''}
+    ${revogado?'<div class="revogado">REVOGADO</div>':''}
+    <div class="grid">
+      <div class="side">
+        <img class="logo" src="assets/cert/logo-academy.png" alt="Brasil Triathlon Academy" onerror="this.style.display='none'">
+        <div class="bloco">
+          <span class="k">${esc(categoria)}</span>
+          <span class="curso">${esc(titulo)}</span>
+          ${subtitulo?`<span class="csub">${esc(subtitulo)}</span>`:''}
+        </div>
+        <div class="meta">
+          ${periodo?`<div><div class="rot">Datas</div><div class="val">${esc(periodo)}</div></div>`:''}
+          ${carga?`<div><div class="rot">Carga horária</div><div class="val">${esc(carga)}</div></div>`:''}
+        </div>
+        <div class="foot"><img src="assets/cert/logo-horizontal-azul.png" alt="Brasil Triathlon" onerror="this.style.display='none'"></div>
       </div>
-      <div class="qrbox">${qr}</div>
+
+      <div class="corpo">
+        <div style="display:flex;flex-direction:column;gap:2mm">
+          <span class="kb">Brasil Triathlon Academy</span>
+          <h1>Certificado</h1>
+          <span class="de">${esc(c.tipo_texto || 'de conclusão')}</span>
+        </div>
+        <div style="margin-top:11mm;display:flex;flex-direction:column;gap:4mm">
+          <span class="certificamos">Certificamos que</span>
+          <span class="nome">${esc(data.nome)}</span>
+          <p class="frase">${frase}</p>
+        </div>
+        <div class="sigs">${sigs}</div>
+        <div class="valida">
+          <div class="qr">${qr}</div>
+          <div style="display:flex;flex-direction:column;gap:1mm">
+            <span class="rot">Código de validação</span>
+            <span class="cod">${esc(data.codigo)}</span>
+            <span class="url">Verifique em ${esc(urlCurta)}</span>
+          </div>
+          <div class="patro">
+            <span class="rot">Patrocínio:</span>
+            <img src="assets/cert/regua-patrocinio.png" alt="Loterias Caixa · Caixa · Governo do Brasil" onerror="this.style.display='none'">
+          </div>
+        </div>
+      </div>
     </div>
   </div>`;
   document.title = 'Certificado ' + data.codigo + ' · ' + data.nome;
 })();
-function c0(m){ return m?(' — '+esc(m)):''; }
 </script>
 </body>
 </html>

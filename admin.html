@@ -1394,22 +1394,27 @@ async function axCertificados(id){
   const {data:pp} = await sb.from('ubt_admins').select('nome,papeis');
   const holder = papel => { const h=(pp||[]).find(x=>(x.papeis||[]).includes(papel)); return h?h.nome:''; };
   const {data:bens} = await sb.from('ubt_acao_beneficiarios').select('nome,funcao_portaria').eq('acao_id',id);
-  const prof = (bens||[]).find(b=>b.funcao_portaria==='principal') || (bens||[])[0];
-  window.__ctSigs = [
-    {nome:holder('direcao_geral'), cargo:'Direção Geral'},
-    {nome:holder('coordenacao'), cargo:'Coordenação'},
-    {nome:prof?prof.nome:'', cargo:'Professor(a)'},
-  ];
+  // assinaturas = facilitadores da ação (+ coordenação), editáveis
+  let sigs = (bens||[]).map(b=>({nome:b.nome, cargo: b.funcao_portaria==='mediador'?'Coordenação · Brasil Triathlon Academy':'Facilitador'}));
+  if(!sigs.some(s=>/coorden/i.test(s.cargo))){ const co=holder('coordenacao'); if(co) sigs.push({nome:co,cargo:'Coordenação · Brasil Triathlon Academy'}); }
+  while(sigs.length<3) sigs.push({nome:'', cargo:'Facilitador'});
+  window.__ctSigs = sigs.slice(0,3);
+  // separa título / subtítulo pelo ':' ou '—'
+  const partes=(a.titulo||'').split(/\s*[:—]\s*/);
+  const tituloDef = partes[0]||a.titulo||'';
+  const subDef = partes.slice(1).join(' — ');
   const {data:emit} = await sb.from('ubt_certificados').select('codigo,nome,situacao').eq('acao_id',id).order('sequencial');
   openDlg('Certificados — '+(a.titulo||''), `
     <div class="muted">Emite o <b>certificado de participação</b> para os concluintes <b>pagos</b> da ação. Cada aluno recebe um código + QR e página de validação. Reemitir ignora quem já tem.</div>
-    <div class="grid2" style="margin-top:8px">
+    <label>Título do curso (no certificado)</label><input id="ct-titulo" value="${esc(tituloDef)}">
+    <label>Subtítulo</label><input id="ct-sub" value="${esc(subDef)}">
+    <div class="grid2" style="margin-top:4px">
       <div><label>Data de conclusão</label><input id="ct-data" type="date" value="${esc(a.inscricoes_encerramento||'')}"></div>
       <div><label>Carga horária</label><input id="ct-carga" value="${esc(a.carga_horaria||'')}"></div>
     </div>
     <label>Período (texto que aparece no certificado)</label><input id="ct-periodo" placeholder="06, 07, 20 e 21 de novembro de 2026">
     <label>Modalidade</label><input id="ct-modal" value="${esc(a.formato||'')}">
-    <div class="blk" style="font-weight:700;margin-top:10px">Assinaturas</div>
+    <div class="blk" style="font-weight:700;margin-top:10px">Assinaturas (até 3)</div>
     <div id="ct-sigs"></div>
     <div id="ct-msg" style="margin-top:8px"></div>
     ${emit&&emit.length?`<div class="blk" style="font-weight:700;margin-top:12px">Já emitidos (${emit.length})</div>
@@ -1418,6 +1423,7 @@ async function axCertificados(id){
     const assinaturas = (window.__ctSigs||[]).filter(s=>s.nome&&s.nome.trim()).map(s=>({nome:s.nome.trim(),cargo:s.cargo||''}));
     const st=document.getElementById('ct-msg'); st.textContent='Emitindo...';
     const r = await fnCall({action:'emitir_certificados', fonte:'participacao', acao_id:id, base:location.origin,
+      titulo:val('ct-titulo')||null, subtitulo:val('ct-sub')||null,
       data_conclusao:val('ct-data')||null, carga:val('ct-carga')||null, periodo:val('ct-periodo')||null,
       modalidade:val('ct-modal')||null, assinaturas});
     st.innerHTML = `<div class="msg" style="background:#e8f5ee;color:#166534;padding:8px;border-radius:6px">✓ ${r.emitidos} emitido(s) · ${r.ja_existiam} já existiam${r.sem_documento?` · ${r.sem_documento} sem CPF (ignorados)`:''}. Reabra para ver a lista e os links.</div>`;

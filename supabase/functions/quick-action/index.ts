@@ -145,8 +145,8 @@ Deno.serve(async (req) => {
         for (const p of pagos) {
           if (feitos.has(p.documento)) { pulados++; continue; }
           const campos = {
-            tipo_texto: "Participação em curso",
-            frase: body.frase || "participou e concluiu o curso de formação continuada",
+            tipo_texto: "de conclusão",
+            categoria: body.categoria || "Curso livre",
             titulo: body.titulo || acao.titulo,
             subtitulo: body.subtitulo || null,
             carga: body.carga || acao.carga_horaria || null,
@@ -176,8 +176,9 @@ Deno.serve(async (req) => {
         for (const r of (regs || [])) {
           if (feitos.has(r.id)) { pulados++; continue; }
           const campos = {
-            tipo_texto: "Certificação de Treinador",
-            frase: "concluiu o curso de formação e foi habilitado(a) como",
+            tipo_texto: "de conclusão",
+            categoria: "Formação de treinadores",
+            categoria_frase: "curso de formação de treinadores",
             titulo: NIVEL_NOME[r.nivel] || r.nivel,
             subtitulo: null,
             periodo: `Turma ${r.turma} · ${r.ano}`,
