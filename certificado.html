@@ -52,8 +52,8 @@
   .valida .rot{font-size:7pt;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--gray)}
   .valida .cod{font-size:11pt;font-weight:700;letter-spacing:.06em;color:var(--navy)}
   .valida .url{font-size:7.5pt;color:var(--gray)}
-  .patro{display:flex;align-items:center;gap:3mm;margin-left:auto}
-  .patro img{height:9mm;width:auto;display:block}
+  .patrobar{margin-top:5mm;display:flex;justify-content:center;align-items:center}
+  .patrobar img{height:7.5mm;width:auto;max-width:100%;display:block}
   .revogado{position:absolute;top:50%;left:34%;right:4%;transform:rotate(-14deg);text-align:center;font-weight:900;font-size:52pt;letter-spacing:8px;color:rgba(197,48,48,.16);z-index:3;pointer-events:none}
   @media print{ body{background:#fff} .bar{display:none} .folha{box-shadow:none;margin:0;max-width:none} @page{size:A4 landscape;margin:0} }
   @media(max-width:800px){ .folha{width:100%;aspect-ratio:auto} .grid{grid-template-columns:1fr} h1{font-size:30pt} .nome{font-size:22pt} }
@@ -142,11 +142,8 @@ const COD = (params.get('cod')||params.get('codigo')||params.get('c')||'').trim(
             <span class="cod">${esc(data.codigo)}</span>
             <span class="url">Verifique em ${esc(urlCurta)}</span>
           </div>
-          <div class="patro">
-            <span class="rot">Patrocínio:</span>
-            <img src="assets/cert/regua-patrocinio.png" alt="Loterias Caixa · Caixa · Governo do Brasil" onerror="this.style.display='none'">
-          </div>
         </div>
+        <div class="patrobar"><img src="assets/cert/regua-patrocinio.png" alt="Patrocínio Master: Loterias Caixa, Caixa, Governo do Brasil" onerror="this.style.display='none'"></div>
       </div>
     </div>
   </div>`;
