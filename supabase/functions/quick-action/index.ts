@@ -108,6 +108,101 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
 
+    // Emissão de certificados (participação em curso OU nível). Admin-only (já checado).
+    // Foto congelada: reserva código (sequência atômica) + snapshot + hash. Idempotente.
+    if (action === "emitir_certificados") {
+      const base = String(body.base || "https://academy.triathlonbrasil.org.br").replace(/\/$/, "");
+      const sha256 = async (s: string) => {
+        const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+        return Array.from(new Uint8Array(h)).map((x) => x.toString(16).padStart(2, "0")).join("");
+      };
+      const emitirUm = async (rec: Record<string, unknown>, campos: Record<string, unknown>, ano: number) => {
+        const { data: seq, error: seqErr } = await admin.rpc("ubt_proximo_cert_seq", { p_ano: ano });
+        if (seqErr) throw seqErr;
+        const codigo = `BTA-${ano}-${String(seq).padStart(6, "0")}`;
+        const url_validacao = `${base}/validar?cod=${codigo}`;
+        const hash = await sha256(`${codigo}|${rec.nome}|${JSON.stringify(campos)}`);
+        const { error } = await admin.from("ubt_certificados").insert({
+          ...rec, codigo, ano, sequencial: seq, campos, hash_conteudo: hash, url_validacao,
+          emitido_por: caller.email || null,
+        });
+        if (error) throw error;
+      };
+
+      const assinaturas = Array.isArray(body.assinaturas) ? body.assinaturas : [];
+
+      if (body.fonte === "participacao") {
+        if (!body.acao_id) return json({ error: "acao_id obrigatório" }, 400);
+        const { data: acao } = await admin.from("ubt_acoes").select("*").eq("id", body.acao_id).single();
+        if (!acao) return json({ error: "Ação não encontrada" }, 404);
+        const { data: inscritos } = await admin.from("ubt_acao_inscritos").select("*").eq("acao_id", body.acao_id);
+        const pagos = (inscritos || []).filter((x: any) => String(x.status || "").toLowerCase() === "pago" && !x.cancelado && x.documento);
+        const { data: jaTem } = await admin.from("ubt_certificados").select("documento").eq("acao_id", body.acao_id).eq("tipo", "participacao");
+        const feitos = new Set((jaTem || []).map((x: any) => x.documento));
+        const ano = body.data_conclusao ? parseInt(String(body.data_conclusao).slice(0, 4)) : new Date().getFullYear();
+        let emitidos = 0, pulados = 0;
+        const semDoc = (inscritos || []).filter((x: any) => String(x.status || "").toLowerCase() === "pago" && !x.cancelado && !x.documento).length;
+        for (const p of pagos) {
+          if (feitos.has(p.documento)) { pulados++; continue; }
+          const campos = {
+            tipo_texto: "Participação em curso",
+            frase: body.frase || "participou e concluiu o curso de formação continuada",
+            titulo: body.titulo || acao.titulo,
+            subtitulo: body.subtitulo || null,
+            carga: body.carga || acao.carga_horaria || null,
+            periodo: body.periodo || null,
+            modalidade: body.modalidade || acao.formato || null,
+            assinaturas, base_legal: body.base_legal || null,
+          };
+          await emitirUm({ tipo: "participacao", acao_id: body.acao_id, nome: p.nome, documento: p.documento, email: p.email }, campos, ano);
+          emitidos++;
+        }
+        return json({ ok: true, emitidos, ja_existiam: pulados, sem_documento: semDoc });
+      }
+
+      if (body.fonte === "nivel") {
+        const NIVEL_NOME: Record<string, string> = {
+          N1: "Treinador Nível 1", N2: "Treinador Nível 2",
+          WT1: "World Triathlon Level 1", N1P: "Treinador Nível 1 — Habilitação em Paratriathlon",
+        };
+        let q = admin.from("ubt_certificacoes").select("*");
+        if (Array.isArray(body.certificacao_ids) && body.certificacao_ids.length) q = q.in("id", body.certificacao_ids);
+        if (body.nivel) q = q.eq("nivel", body.nivel);
+        if (body.turma) q = q.eq("turma", body.turma);
+        const { data: regs } = await q;
+        const { data: jaTem } = await admin.from("ubt_certificados").select("certificacao_id").eq("tipo", "nivel");
+        const feitos = new Set((jaTem || []).map((x: any) => x.certificacao_id));
+        let emitidos = 0, pulados = 0;
+        for (const r of (regs || [])) {
+          if (feitos.has(r.id)) { pulados++; continue; }
+          const campos = {
+            tipo_texto: "Certificação de Treinador",
+            frase: "concluiu o curso de formação e foi habilitado(a) como",
+            titulo: NIVEL_NOME[r.nivel] || r.nivel,
+            subtitulo: null,
+            periodo: `Turma ${r.turma} · ${r.ano}`,
+            assinaturas,
+          };
+          await emitirUm({ tipo: "nivel", certificacao_id: r.id, nome: r.nome, email: r.email }, campos, r.ano);
+          emitidos++;
+        }
+        return json({ ok: true, emitidos, ja_existiam: pulados });
+      }
+
+      return json({ error: "fonte inválida (use 'participacao' ou 'nivel')" }, 400);
+    }
+
+    // Revoga um certificado (mantém a linha; vira 'revogado').
+    if (action === "revogar_certificado") {
+      if (!body.codigo) return json({ error: "codigo obrigatório" }, 400);
+      const { error } = await admin.from("ubt_certificados").update({
+        situacao: "revogado", motivo_revogacao: body.motivo || null,
+        revogado_em: new Date().toISOString(), revogado_por: caller.email || null,
+      }).eq("codigo", body.codigo);
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
+    }
+
     // Envio de e-mail de aviso (tramitação) via Resend.
     // Requer os secrets RESEND_API_KEY e (recomendado) RESEND_FROM no projeto.
     if (action === "notify") {
