@@ -167,7 +167,10 @@ window.UBT_CONFIG = {
     <div id="pane-certemit" class="hidden">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
         <h3 style="margin:0">Certificados emitidos <span id="ce-count" class="muted"></span></h3>
-        <input id="ce-busca" placeholder="buscar por nome, código ou curso…" style="min-width:260px;padding:8px 11px;border:1px solid var(--gray-200,#e3e8e8);border-radius:8px" oninput="renderCertEmit()">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input id="ce-busca" placeholder="buscar por nome, código ou curso…" style="min-width:240px;padding:8px 11px;border:1px solid var(--gray-200,#e3e8e8);border-radius:8px" oninput="renderCertEmit()">
+          <button class="btn btn-sm" style="background:var(--gray-100)" onclick="exportCertCSV()">⬇ Exportar CSV</button>
+        </div>
       </div>
       <div class="muted" style="margin-bottom:10px">Todos os certificados gerados (participação e nível). Clique para abrir o documento, validar, editar os dados ou revogar.</div>
       <div class="card"><table><thead><tr><th>Código</th><th>Titular</th><th>Curso / nível</th><th>Emitido</th><th>Situação</th><th></th></tr></thead><tbody id="tb-certemit"></tbody></table></div>
@@ -1469,7 +1472,7 @@ async function sha256Hex(s){ const h=await crypto.subtle.digest('SHA-256', new T
 let CERTS=[];
 async function loadCertEmit(){
   const tb=$('#tb-certemit'); if(!tb) return;
-  const {data,error}=await sb.from('ubt_certificados').select('codigo,nome,tipo,situacao,emitido_em,campos,acao_id').order('emitido_em',{ascending:false});
+  const {data,error}=await sb.from('ubt_certificados').select('codigo,nome,email,tipo,situacao,emitido_em,campos,acao_id').order('emitido_em',{ascending:false});
   if(error){ tb.innerHTML=`<tr><td colspan="6"><div class="msg err">${esc(error.message)}</div></td></tr>`; return; }
   CERTS=data||[]; renderCertEmit();
 }
@@ -1493,6 +1496,21 @@ function renderCertEmit(){
         ${rev?`<button class="btn btn-sm" style="background:var(--gray-100)" onclick="reativarCert('${esc(c.codigo)}')">Reativar</button>`:`<button class="btn btn-sm btn-danger" onclick="revogarCert('${esc(c.codigo)}')">Revogar</button>`}
       </td></tr>`;
   }).join('') || '<tr><td colspan="6" class="muted">Nenhum certificado emitido ainda.</td></tr>';
+}
+function exportCertCSV(){
+  const q=(($('#ce-busca')||{}).value||'').toLowerCase().trim();
+  const rows=CERTS.filter(c=>!q || (c.codigo+' '+(c.nome||'')+' '+((c.campos||{}).titulo||'')).toLowerCase().includes(q));
+  if(!rows.length){ alert('Nada para exportar.'); return; }
+  const cel=v=>{ const s=(v==null?'':String(v)); return /[";\n,]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+  const head=['nome','email','codigo','curso','situacao','emitido_em','link_certificado'];
+  const linhas=rows.map(c=>[
+    c.nome||'', c.email||'', c.codigo, (c.campos||{}).titulo||'', c.situacao,
+    (''+c.emitido_em).slice(0,10), location.origin+'/certificado?cod='+c.codigo
+  ].map(cel).join(','));
+  const csv='﻿'+head.join(',')+'\n'+linhas.join('\n');   // BOM p/ acentos no Excel/MailChimp
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='certificados-'+new Date().toISOString().slice(0,10)+'.csv'; a.click(); URL.revokeObjectURL(a.href);
 }
 async function revogarCert(codigo){
   const motivo=prompt('Motivo da revogação do certificado '+codigo+' (opcional):'); if(motivo===null) return;
